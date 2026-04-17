@@ -1179,8 +1179,13 @@ def main():
             )
 
     if pickle_name:
-        with open("graal.pkl", "wb") as pickle_handle:
-            pickle.dump(p2, pickle_handle)
+        try:
+            with open("graal.pkl", "wb") as pickle_handle:
+                pickle.dump(p2, pickle_handle)
+        except TypeError as e:
+            logger.warning(
+                "Could not pickle state (likely due to h5py handles): {}".format(e)
+            )
 
     # p2.ctx_gl.pop()
     # sampler.step_sampler(50)
