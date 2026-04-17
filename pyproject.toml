@@ -1,0 +1,59 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "instagraal"
+version = "0.1.6"
+description = "Large genome reassembly based on Hi-C data"
+readme = "README.md"
+license = "GPL-3.0-only"
+requires-python = ">=3.8"
+authors = [
+    { name = "Lyam Baudry", email = "lyam.baudry@pasteur.fr" },
+    { name = "Hervé Marie-Nelly" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Operating System :: MacOS",
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "codepy",
+    "h5py",
+    "docopt",
+    "biopython",
+    "pycuda",
+]
+
+[project.urls]
+Homepage = "https://github.com/koszullab/instagraal"
+Repository = "https://github.com/koszullab/instagraal"
+
+[project.scripts]
+instagraal = "instagraal.instagraal:main"
+instagraal-polish = "instagraal.parse_info_frags:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["instagraal"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "instagraal/",
+    "scripts/",
+    "example/",
+    "README.md",
+    "LICENSE",
+]
