@@ -30,13 +30,13 @@ You can now easily install instaGRAAL using a docker container available below o
 Install from PyPI:
 
 ```sh
-    sudo pip3 install -U instagraal
+sudo pip3 install -U instagraal
 ```
 
 or, if you want to get the very latest version:
 
 ```sh
-   sudo pip3 install -e git+https://github.com/koszullab/instagraal.git@master#egg=instagraal
+sudo pip3 install -e git+https://github.com/koszullab/instagraal.git@master#egg=instagraal
 ```
 
 This should automatically handle most dependencies.
@@ -50,15 +50,15 @@ The scaffolder and polishing libraries are written in Python 3 and CUDA. As such
 You will need to download and install the [NVIDIA CUDA toolkit](https://developer.nvidia.com/cuda-downloads). Manual installation is recommended - installing ```nvidia-cuda-toolkit``` from Ubuntu's package manager has been known to cause glitches. It is fairly straightforward on OS X thanks to the installation wizard. Here is how to quickly do it on Ubuntu 18.04:
 
 ```sh
-    wget https://developer.nvidia.com/compute/cuda/10.0/Prod/local_installers/cuda_10.0.130_410.48_linux
-    chmod +x cuda_10.0.130_410.48_linux
-    sudo ./cuda_10.0.130_410.48_linux
+wget https://developer.nvidia.com/compute/cuda/10.0/Prod/local_installers/cuda_10.0.130_410.48_linux
+chmod +x cuda_10.0.130_410.48_linux
+sudo ./cuda_10.0.130_410.48_linux
 ```
 
 **Note to Ubuntu users**: Be aware that the installation script will fail if it isn't run as root, or if a graphical instance (e.g. X) is running as well. You may need to temporarily shut it down, for instance by switching to tty1 and running the following (prior to the installation script):
 
 ```sh
-    sudo service lightdm stop
+sudo service lightdm stop
 ```
 
 (Replace ```lightdm``` with ```mdm```, ```gdm``` or whichever login manager is present on your machine if that fails; if all else fails as well, you may have to run something like ```sudo pkill Xorg``` instead.)
@@ -101,15 +101,17 @@ wish to install them manually, these are:
 
 They can also be handily installed using the supplied requirements file in the repo:
 
-    pip3 install -Ur requirements.txt
+```sh
+pip3 install -Ur requirements.txt
+```
 
 You will also need to build  ```pycuda``` with OpenGL support and **disable** its use of custom Boost libraries. Installing it directly from PyPI will cause errors at runtime. Here is how to do it manually with Git on Ubuntu or OS X:
 
 ```sh
-    git clone --recurse-submodules https://github.com/inducer/pycuda.git
-    cd pycuda
-    python3 configure.py --cuda-enable-gl --no-use-shipped-boost
-    sudo python3 setup.py install
+git clone --recurse-submodules https://github.com/inducer/pycuda.git
+cd pycuda
+python3 configure.py --cuda-enable-gl --no-use-shipped-boost
+sudo python3 setup.py install
 ```
 
 You may run (as root)  ```instagraal-setup```, an all-in-one script to handle all the above dependencies on Ubuntu 17+.
@@ -119,7 +121,7 @@ You may run (as root)  ```instagraal-setup```, an all-in-one script to handle al
 There is experimental Docker support for instaGRAAL. You may fetch the corresponding image by running the following:
 
 ```sh
-    docker pull koszullab/instagraal
+docker pull koszullab/instagraal
 ```
 And run it with
 ```sh
@@ -132,14 +134,19 @@ docker run --gpus all koszullab/instagraal
 
 Unlike GRAAL, this is meant to be run from the command line.
 
-    instagraal <hic_folder> <reference.fa> [<output_folder>]
-               [--level=4] [--cycles=100] [--coverage-std=1]
-               [--neighborhood=5] [--device=0] [--circular] [--bomb]
-               [--save-matrix] [--pyramid-only] [--save-pickle] [--simple]
-               [--quiet] [--debug]
+### Usage
+
+```sh
+instagraal <hic_folder> <reference.fa> [<output_folder>]
+            [--level=4] [--cycles=100] [--coverage-std=1]
+            [--neighborhood=5] [--device=0] [--circular] [--bomb]
+            [--save-matrix] [--pyramid-only] [--save-pickle] [--simple]
+            [--quiet] [--debug]
+```
 
 ### Options
 
+```sh
     -h, --help              Display this help message.
     --version               Display the program's current version.
     -l 4, --level 4         Level (resolution) of the contact map.
@@ -176,6 +183,7 @@ Unlike GRAAL, this is meant to be run from the command line.
     --debug                 Display debug information. For development purposes
                             only. Mutually exclusive with --quiet, and will
                             override it. [default: False]
+```
 
 ### Input datasets
 
@@ -208,15 +216,15 @@ Other files are mostly for developmental purposes and keep track of the evolutio
 
 __This step is strongly recommended to improve the quality of your scaffolds__, unless your input contigs have many misassemblies. Lingering artifacts found in output genomes can be corrected by editing the ```info_frags.txt``` file, either by hand or with a script. Look at options by running the following:
 
-    instagraal-polish -h
+```sh
+instagraal-polish -h
+```
 
 The most common use case is to run all curation procedures at once:
 
-    instagraal-polish -m polishing -i info_frags.txt -f contigs.fasta -o curated_assembly.fa
-
-You can add gaps with the parameter -j (necessary for subsequent gap filling), for instance gaps with 10 Ns in this example:
-
-    instagraal-polish -m polishing -i info_frags.txt -f contigs.fasta -o curated_assembly.fa -j NNNNNNNNNN
+```sh
+instagraal-polish -m polishing -i info_frags.txt -f reference.fasta -o polished_assembly.fa
+```
 
 ## Troubleshooting
 
@@ -283,7 +291,7 @@ If you encounter an error like the following :
 You may need to upgrade to a more recent version of ```codepy```.
 
 ```sh
-    sudo pip3 install --upgrade --no-cache-dir -e git+https://github.com/inducer/codepy.git@master#egg=codepy
+sudo pip3 install --upgrade --no-cache-dir -e git+https://github.com/inducer/codepy.git@master#egg=codepy
 ```
 
 No such error has been found as of commit [10a014f](https://github.com/inducer/codepy/tree/10a014f), so if you encounter regressions after this, you should stick to that version.
@@ -291,17 +299,17 @@ No such error has been found as of commit [10a014f](https://github.com/inducer/c
 Depending on your system, you may also need to upgrade to gcc/g++ 8:
 
 ```sh
-    sudo apt install gcc-8 g++-8
+sudo apt install gcc-8 g++-8
 ```
 
 If for some reason your system does not automatically switch to gcc/g++-8, you should manually configure your system to do so, *e.g.* on Ubuntu:
 
 ```sh
-    sudo update-alternatives --remove-all gcc 
-    sudo update-alternatives --remove-all g++
+sudo update-alternatives --remove-all gcc 
+sudo update-alternatives --remove-all g++
 
-    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 10
-    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 10
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 10
+sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 10
 ```
 
 ### General tips
