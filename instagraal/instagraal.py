@@ -57,7 +57,6 @@ import pycuda.autoinit
 import pycuda.driver as cuda
 
 # helper modules
-from instagraal import glutil
 from instagraal.vector import Vec
 import numpy as np
 import matplotlib.pyplot as plt
@@ -67,8 +66,7 @@ import pickle
 import logging
 from instagraal import log
 from instagraal.log import logger
-
-VERSION_NUMBER = "0.1.2"
+from instagraal.version import __version__ as VERSION_NUMBER
 
 DEFAULT_CYCLES = 100
 DEFAULT_LEVEL = 4
@@ -345,27 +343,8 @@ class instagraal_class:
                         self.simulation.output_folder,
                         "matrix_cycle_" + str(j) + ".png",
                     )
-                    matrix = self.simulation.sampler.gpu_im_gl.get()
-                    plt.gca().set_axis_off()
-                    plt.subplots_adjust(
-                        top=1, bottom=0, right=1, left=0, hspace=0, wspace=0
-                    )
-                    matrix = matrix + matrix.T - np.diag(np.diag(matrix))
-                    plt.margins(0, 0)
-                    plt.gca().xaxis.set_major_locator(plt.NullLocator())
-                    plt.gca().yaxis.set_major_locator(plt.NullLocator())
-                    plt.figure()
-                    plt.imshow(
-                        matrix, vmax=np.percentile(matrix, 99), cmap="Reds"
-                    )
-                    plt.axis("off")
-                    plt.savefig(
-                        my_file_path,
-                        bbox_inches="tight",
-                        pad_inches=0.0,
-                        dpi=300,
-                    )
-                    plt.close()
+                    self.simulation.sampler.display_current_matrix(my_file_path)
+                    plt.close("all")
             except OSError as e:
                 logger.warning(
                     "Could not write matrix at cycle {} "

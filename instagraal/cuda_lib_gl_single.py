@@ -12,9 +12,7 @@ from pycuda import gpuarray as ga
 
 # from pycuda.scan import InclusiveScanKernel
 
-import pycuda.gl as cudagl
-
-import codepy.cgen as cgen
+import cgen
 from codepy.bpl import BoostPythonModule
 from codepy.cuda import CudaModule
 import codepy.jit
@@ -30,10 +28,10 @@ import instagraal.init_nuisance as nuis
 # from OpenGL.arrays import vbo
 import scipy as scp
 
+from importlib.resources import files as _pkg_files
+
 from instagraal import log
 from instagraal.log import logger
-
-import pkg_resources
 
 logger.setLevel(log.CURRENT_LOG_LEVEL)
 
@@ -97,6 +95,7 @@ class sampler:
         self.sub_candidates_dup = sub_candidates_dup
         self.sub_candidates_output_data = sub_candidates_output_data
         self.init_n_sub_frags = np.int32(init_n_sub_frags)
+        self.dt = np.float32(0.01)
         self.sparse_data_2_gpu()
         self.use_rippe = use_rippe
 
@@ -133,7 +132,7 @@ class sampler:
         self.n_new_sub_frags = np.int32(n_new_sub_frags)
 
         self.uniq_frags = np.int32(
-            np.lib.arraysetops.setdiff1d(
+            np.setdiff1d(
                 np.arange(0, self.n_frags, dtype=np.int32),
                 self.np_id_frag_duplicated,
             )
@@ -284,11 +283,11 @@ class sampler:
         )
 
         logger.info("loading kernels ...")
-        kernel_adapt_entry_point = pkg_resources.resource_filename(
-            "instagraal", "kernels/kernel_sparse_adapt.cu"
+        kernel_adapt_entry_point = str(
+            _pkg_files("instagraal").joinpath("kernels/kernel_sparse_adapt.cu")
         )
-        kernel_entry_point = pkg_resources.resource_filename(
-            "instagraal", "kernels/kernel_sparse.cu"
+        kernel_entry_point = str(
+            _pkg_files("instagraal").joinpath("kernels/kernel_sparse.cu")
         )
         if self.active_insert_blocks:
             self.loadProgram(kernel_adapt_entry_point)
@@ -654,19 +653,24 @@ class sampler:
         # Add BPL using statement
         host_mod.add_to_preamble([cgen.Statement(x) for x in host_namespaces])
 
+        # Helper lambda: extract CUdeviceptr from GPUArray attribute.
+        # Newer PyCUDA returns DeviceAllocation from .gpudata which is not
+        # directly convertible to CUdeviceptr; cast through int first.
+        def _gpudata_extract(varname, arr_name):
+            return (
+                f'CUdeviceptr {varname} = '
+                f'(CUdeviceptr)PyLong_AsLongLong('
+                f'object({arr_name}.attr("gpudata")).ptr())'
+            )
+
         host_statements_sort_zip = [
             # Extract information from PyCUDA GPUArray
             # Get length
-            # 'tuple shape = extract<tuple>(gpu_array_keys.attr("shape"))',
             "int length = n_vals",
-            # 'int length = extract<int>(shape[0])',
             # Get data pointer
-            "CUdeviceptr ptr_keys = "
-            'extract<CUdeviceptr>(gpu_array_keys.attr("gpudata"))',
-            "CUdeviceptr ptr_valsa = "
-            'extract<CUdeviceptr>(gpu_array_valsa.attr("gpudata"))',
-            "CUdeviceptr ptr_valsb = "
-            'extract<CUdeviceptr>(gpu_array_valsb.attr("gpudata"))',
+            _gpudata_extract("ptr_keys", "gpu_array_keys"),
+            _gpudata_extract("ptr_valsa", "gpu_array_valsa"),
+            _gpudata_extract("ptr_valsb", "gpu_array_valsb"),
             # Call Thrust routine, compiled into the CudaModule
             "my_sort_zip(ptr_keys, length, ptr_valsa, ptr_valsb)",
             # Return result
@@ -692,16 +696,11 @@ class sampler:
         host_statements_sort_zip_cmplex = [
             # Extract information from PyCUDA GPUArray
             # Get length
-            # 'tuple shape = extract<tuple>(gpu_array_keys.attr("shape"))',
             "int length = n_vals",
-            # 'int length = extract<int>(shape[0])',
             # Get data pointer
-            """CUdeviceptr ptr_keys_a = """
-            """extract<CUdeviceptr>(gpu_array_keys_a.attr("gpudata"))""",
-            """CUdeviceptr ptr_keys_b = """
-            """extract<CUdeviceptr>(gpu_array_keys_b.attr("gpudata"))""",
-            """CUdeviceptr ptr_vals = """
-            """extract<CUdeviceptr>(gpu_array_vals.attr("gpudata"))""",
+            _gpudata_extract("ptr_keys_a", "gpu_array_keys_a"),
+            _gpudata_extract("ptr_keys_b", "gpu_array_keys_b"),
+            _gpudata_extract("ptr_vals", "gpu_array_vals"),
             # Call Thrust routine, compiled into the CudaModule
             "my_sort_zip_cmplex(ptr_keys_a, ptr_keys_b, length, ptr_vals)",
             # Return result
@@ -730,14 +729,10 @@ class sampler:
         host_statements_sort_simple = [
             # Extract information from PyCUDA GPUArray
             # Get length
-            # 'tuple shape = extract<tuple>(gpu_array_keys.attr("shape"))',
             "int length = n_vals",
-            # 'int length = extract<int>(shape[0])',
             # Get data pointer
-            """CUdeviceptr ptr_keys = """
-            """extract<CUdeviceptr>(gpu_array_keys.attr("gpudata"))""",
-            """CUdeviceptr ptr_vals = """
-            """extract<CUdeviceptr>(gpu_array_vals.attr("gpudata"))""",
+            _gpudata_extract("ptr_keys", "gpu_array_keys"),
+            _gpudata_extract("ptr_vals", "gpu_array_vals"),
             # Call Thrust routine, compiled into the CudaModule
             "my_sort_simple(ptr_keys, length, ptr_vals)",
             # Return result
@@ -764,8 +759,7 @@ class sampler:
             # Get length
             "int length = n_vals",
             # Get data pointer
-            """CUdeviceptr ptr_vals = """
-            """extract<CUdeviceptr>(gpu_array_vals.attr("gpudata"))""",
+            _gpudata_extract("ptr_vals", "gpu_array_vals"),
             # Call Thrust routine, compiled into the CudaModule
             "my_prefix_sum(ptr_vals, length)",
             # Return result
@@ -1907,7 +1901,7 @@ class sampler:
         id_ctg_a = self.gpu_vect_frags.id_c[id_frag]
         # print "id_contig a = ", id_ctg_a
         self.all_scores = np.zeros((self.n_tmp_struct * n), dtype=np.float64)
-        max_id = self.modify_gl_cuda_buffer(id_frag, self.gl_window.dt)
+        max_id = self.modify_gl_cuda_buffer(id_frag, self.dt)
         flip_eject = 1
         for (id_cand, i) in zip(self.candidates, list(range(0, n))):
              # self.gl_window.remote_update()
@@ -2421,7 +2415,7 @@ class sampler:
         )
         end.record()
         end.synchronize()
-        self.modify_gl_cuda_buffer(0, self.gl_window.dt)
+        self.modify_gl_cuda_buffer(0, self.dt)
 
     def local_flip(self, id_fA, mode, max_id):
         # mode = 12
@@ -3147,7 +3141,8 @@ class sampler:
         #            vmin=0, vmax=20,
         #            interpolation='nearest')
         # plt.show()
-        matrix = self.hic_matrix[np.ix_(full_order_high, full_order_high)]
+        hic_matrix = self.sparse_matrix.toarray()
+        matrix = hic_matrix[np.ix_(full_order_high, full_order_high)]
 
         plt.imshow(matrix, vmax=np.percentile(matrix, 99))
         plt.savefig(filename)
@@ -3736,7 +3731,7 @@ class sampler:
 
         if ori_id in self.id_frag_duplicated:
             d = self.frag_dispatcher[ori_id]
-            dup = np.lib.arraysetops.setdiff1d(
+            dup = np.setdiff1d(
                 self.collector_id_repeats[d["x"] : d["y"]], id_fA
             )
             out.extend(dup)
