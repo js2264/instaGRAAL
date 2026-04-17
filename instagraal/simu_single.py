@@ -5,9 +5,6 @@ import os
 import instagraal.pyramid_sparse as pyr
 
 # import Image
-# from OpenGL.GL import *
-import OpenGL.GL
-from OpenGL.arrays import vbo
 import numpy as np
 from instagraal.cuda_lib_gl_single import sampler as sampler_lib
 
@@ -811,6 +808,7 @@ class simulation:
         self.vel[:, 3] = np.random.random_sample((self.n_frags,))
 
     def init_gl_image(self,):
+        import OpenGL.GL
 
         self.texid = 0
         self.pbo_im_buffer = OpenGL.GL.glGenBuffers(
@@ -955,7 +953,7 @@ class simulation:
         self.collect_accu_frags = np.array(
             self.collect_accu_frags, dtype=np.float32
         )
-        self.norm_vect = np.mat(self.norm_vect)
+        self.norm_vect = np.asmatrix(self.norm_vect)
         self.init_n_sub_frags = n_sub_frags
 
     def create_new_sub_frags(self,):
