@@ -89,3 +89,6 @@ __pypackages__/
 
 # User-specific files
 sparsity_*pdf
+out/
+pyramids/
+
