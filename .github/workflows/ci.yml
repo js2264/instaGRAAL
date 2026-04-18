@@ -28,6 +28,13 @@ jobs:
             echo "has_gpu=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Run help command
+        run: |
+          docker run --gpus all \
+            -v ${{ github.workspace }}/example:/work/example \
+            instagraal \
+            instagraal --help
+
       - name: Run example command (GPU)
         if: steps.gpu.outputs.has_gpu == 'true'
         run: |
