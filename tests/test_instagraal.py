@@ -4,45 +4,37 @@ Basic testing for the instaGRAAL scaffolder.
 """
 
 import pathlib
-import pickle
+import sys
+
 import pytest
-from instagraal import instagraal
+from unittest.mock import MagicMock, patch
 
-TEST_DATASETS = ("demo_name", ["trichoderma"])
+import instagraal.instagraal as instagraal_module
+
+EXAMPLE_DIR = pathlib.Path(__file__).parent.parent / "example"
 
 
-@pytest.mark.parametrize(*TEST_DATASETS)
-def test_single_run(demo_name):
-    """Test run on the Trichoderma dataset.
-    """
-    dataset_path = pathlib.Path("/media/rsg/DATA/instaGRAAL/demos") / demo_name
-    p2 = instagraal.window(
-        name=demo_name,
-        folder_path=dataset_path,
-        fasta=dataset_path / ("{}.fa".format(demo_name)),
-        device=0,
-        level=3,
-        n_iterations_em=100,
-        n_iterations_mcmc=30,
-        is_simu=False,
-        scrambled=False,
-        perform_em=False,
-        use_rippe=True,
-        gl_size_im=1000,
-        sample_param=True,
-        thresh_factor=0,
-        output_folder=dataset_path,
-    )
+def test_main_uses_correct_cycles(tmp_path):
+    """Test that the instagraal main command runs with 5 cycles."""
+    with patch.object(instagraal_module, "instagraal_class") as mock_class:
+        mock_instance = MagicMock()
+        mock_class.return_value = mock_instance
+        mock_instance.simulation.level.S_o_A_frags = {"circ": 0}
 
-    p2.full_em(
-        n_cycles=1,
-        n_neighbours=3,
-        bomb=True,
-        id_start_sample_param=4,
-        save_matrix=True,
-    )
+        sys.argv = [
+            "instagraal",
+            str(EXAMPLE_DIR),
+            str(EXAMPLE_DIR / "example.fa"),
+            str(tmp_path),
+            "--cycles=5",
+        ]
 
-    with open("graal.pkl", "wb") as pickle_handle:
-        pickle.dump(p2, pickle_handle)
+        instagraal_module.main()
 
-    p2.ctx_gl.pop()
+        mock_instance.full_em.assert_called_once_with(
+            n_cycles=5,
+            n_neighbours=5,
+            bomb=False,
+            id_start_sample_param=4,
+            save_matrix=False,
+        )
