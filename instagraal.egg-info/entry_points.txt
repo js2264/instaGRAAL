@@ -1,3 +1,0 @@
-[console_scripts]
-instagraal = instagraal.instagraal:main
-instagraal-polish = instagraal.parse_info_frags:main
