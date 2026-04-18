@@ -122,7 +122,8 @@ pip install instagraal
 ```sh
 git clone https://github.com/koszullab/instagraal.git
 cd instagraal
-uv sync               # creates .venv and installs all dependencies
+uv python install 3.12
+uv sync --python 3.12 # creates .venv and installs all dependencies
 uv run instagraal -h  # run instagraal from the dev environment
 ```
 
