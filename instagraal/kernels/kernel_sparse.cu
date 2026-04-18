@@ -2,13 +2,10 @@
 #define BLOCK_SIZE 512
 #define EL_PER_THREAD 1
 
+#define int2float(x) __int2float_rn(x)
+
 extern "C"
 {
-
-
-    texture<unsigned char, 2> tex;
-
-//    texture<float, 2, cudaReadModeElementType> texData;
 
     typedef struct frag {
         int* pos;

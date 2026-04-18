@@ -4,8 +4,8 @@
 #if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 300
 __device__ inline double __shfl_down(double var, unsigned int srcLane, int width=32) {
    int2 a = *reinterpret_cast<int2*>(&var);
-   a.x = __shfl_down_sync(a.x, srcLane, width);
-   a.y = __shfl_down_sync(a.y, srcLane, width);
+   a.x = __shfl_down_sync(0xFFFFFFFF, a.x, srcLane, width);
+   a.y = __shfl_down_sync(0xFFFFFFFF, a.y, srcLane, width);
    return *reinterpret_cast<double*>(&a);
 }
 #else
@@ -39,13 +39,10 @@ __device__ double atomicAdd(double* address, double val)
 }
 #endif
 
+#define int2float(x) __int2float_rn(x)
+
 extern "C"
 {
-
-
-    texture<unsigned char, 2> tex;
-
-//    texture<float, 2, cudaReadModeElementType> texData;
 
     typedef struct frag {
         int* pos;

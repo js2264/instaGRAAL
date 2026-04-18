@@ -832,7 +832,7 @@ def remove_problematic_fragments(
 
     level = pyramid["0"]
     np_2_scipy_sparse = level["data"]
-    nfrags = int(level["nfrags"][0])
+    nfrags = int(level["nfrags"][0, 0])
     logger.info("nfrags = {}".format(nfrags))
     sparse_mat_csr = sp.csr_matrix(
         (np_2_scipy_sparse[2, :], np_2_scipy_sparse[0:2, :]),
@@ -1241,7 +1241,7 @@ def new_remove_problematic_fragments(
     # full_resolution = pyramid["0"]
     level = pyramid["0"]
     np_2_scipy_sparse = level["data"]
-    nfrags = level["nfrags"][0]
+    nfrags = int(level["nfrags"][0, 0])
     logger.debug("nfrags = {}".format(nfrags))
 
     sparse_mat_csr = sp.csr_matrix(
@@ -1936,7 +1936,7 @@ class level:
         # self.n_frags = self.im_init.shape[0]
 
         # start loading sparse matrix #####
-        self.n_frags = int(np.copy(pyramid.data[str(self.level)]["nfrags"][0]))
+        self.n_frags = int(np.copy(pyramid.data[str(self.level)]["nfrags"][0, 0]))
         self.np_2_scipy_sparse = np.copy(pyramid.data[str(self.level)]["data"])
         self.sparse_mat_csr = sp.csr_matrix(
             (self.np_2_scipy_sparse[2, :], self.np_2_scipy_sparse[0:2, :]),
