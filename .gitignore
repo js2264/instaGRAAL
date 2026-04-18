@@ -86,3 +86,6 @@ docs/_build/
 
 # PEP 582
 __pypackages__/
+
+# User-specific files
+sparsity_*pdf

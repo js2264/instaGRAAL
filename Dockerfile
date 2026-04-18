@@ -31,4 +31,4 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY . /tmp/instaGRAAL
 RUN uv pip install --system /tmp/instaGRAAL && rm -rf /tmp/instaGRAAL
 
-WORKDIR /app
+WORKDIR /work
