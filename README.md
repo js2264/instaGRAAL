@@ -3,8 +3,7 @@
 ![ ](example/example.gif "instaGRAAL demo")
 
 [![PyPI version](https://badge.fury.io/py/instagraal.svg)](https://badge.fury.io/py/instagraal)
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/serpentine.svg)
-[![Docker Cloud Automated build](https://img.shields.io/docker/cloud/automated/koszullab/instagraal)](https://hub.docker.com/r/koszullab/instagraal/)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/instagraal.svg)
 [![Read the docs](https://readthedocs.org/projects/instagraal/badge)](https://instagraal.readthedocs.io)
 [![DOI](https://zenodo.org/badge/131966807.svg)](https://zenodo.org/badge/latestdoi/131966807)
 [![License: GPLv3](https://img.shields.io/badge/License-GPL%203-0298c3.svg)](https://opensource.org/licenses/GPL-3.0)
@@ -14,123 +13,121 @@ Large genome reassembly based on Hi-C data (continuation and partial rewrite of 
 
 This work is under continuous development/improvement - see [GRAAL](https://github.com/koszullab/GRAAL) for information about the basic principles.
 
-You can now easily install instaGRAAL using a docker container available below or you can try it on [Galaxy Europe](https://usegalaxy.eu/).
+## Prerequisites
 
-## Table of contents
-* [Installation](#Installation)
-* [Usage](#Usage)
-* [Output](#Output)
-* [Curation](#Curation)
-* [Troubleshooting](#Troubleshooting)
-* [Documentation](#Documentation)
-* [References](#References)
+instaGRAAL requires **Python 3.8+** and an **NVIDIA GPU** with the **CUDA toolkit** installed.
+
+### NVIDIA CUDA toolkit
+
+The CUDA toolkit provides the compiler (`nvcc`) and header files (`cuda.h`) needed to build `pycuda`. Note that having an NVIDIA driver alone (visible via `nvidia-smi`) is **not** sufficient — the full toolkit must be installed separately.
+
+**Check if CUDA is already available:**
+
+```sh
+nvcc --version
+```
+
+If `nvcc` is not found, install the toolkit using one of the methods below.
+
+#### On an HPC cluster (environment modules)
+
+Many HPC systems provide CUDA via environment modules:
+
+```sh
+module avail cuda          # list available versions
+module load cuda/12.9      # load a version compatible with your driver
+nvcc --version             # verify
+```
+
+#### On Ubuntu / Debian
+
+Install from NVIDIA's official repositories (recommended over the `nvidia-cuda-toolkit` apt package):
+
+```sh
+# See https://developer.nvidia.com/cuda-downloads for the latest instructions.
+# Example for Ubuntu 22.04:
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+sudo dpkg -i cuda-keyring_1.1-1_all.deb
+sudo apt-get update
+sudo apt-get install cuda-toolkit
+```
+
+After installation, make sure CUDA is in your `$PATH`:
+
+```sh
+export PATH=/usr/local/cuda/bin${PATH:+:${PATH}}
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+```
+
+### Boost with Boost.Python
+
+instaGRAAL uses `codepy` to JIT-compile CUDA/C++ code at runtime, which requires **Boost.Python** headers and a `libboost_python` shared library matching your Python version.
+
+#### On an HPC cluster
+
+```sh
+module avail boost
+module load boost/1.89.0
+```
+
+**Important:** The Boost.Python library must match your Python version. For example, if Boost was built with `libboost_python312.so` but you use Python 3.13, linking will fail. Check what's available:
+
+#### On Ubuntu / Debian
+
+```sh
+sudo apt-get install libboost-all-dev
+```
+
+### System libraries (Ubuntu / Debian)
+
+Some Python dependencies need system-level headers to compile. Install these if you encounter build errors:
+
+```sh
+sudo apt-get install \
+  hdf5-tools \
+  libboost-all-dev \
+  libjpeg-dev \
+  zlib1g-dev
+```
 
 ## Installation
 
-Install from PyPI:
+### With Docker (recommended for reproducibility)
+
+The easiest way to run instaGRAAL with all dependencies pre-configured is via Docker.
+This requires [Docker](https://docs.docker.com/get-docker/).
+
+Build the image:
 
 ```sh
-sudo pip3 install -U instagraal
+docker build -t instagraal .
 ```
 
-or, if you want to get the very latest version:
+Run instaGRAAL:
 
 ```sh
-sudo pip3 install -e git+https://github.com/koszullab/instagraal.git@master#egg=instagraal
+docker run --gpus all -v /path/to/data:/work instagraal \
+  instagraal hic_folder reference.fa output
 ```
 
-This should automatically handle most dependencies.
-
-### Requirements
-
-The scaffolder and polishing libraries are written in Python 3 and CUDA. As such, an NVIDIA graphics card is required for the scaffolder to run. The Python 2 version is available at the ```python2``` branch of this repository, but be aware that development will mainly focus on the Python 3 version. The software has been tested for Ubuntu 17.04 and later, and most dependencies can be downloaded with its package manager (or Python's ```pip```).
-
-#### External libraries
-
-You will need to download and install the [NVIDIA CUDA toolkit](https://developer.nvidia.com/cuda-downloads). Manual installation is recommended - installing ```nvidia-cuda-toolkit``` from Ubuntu's package manager has been known to cause glitches. It is fairly straightforward on OS X thanks to the installation wizard. Here is how to quickly do it on Ubuntu 18.04:
+### With pip (from PyPI)
 
 ```sh
-wget https://developer.nvidia.com/compute/cuda/10.0/Prod/local_installers/cuda_10.0.130_410.48_linux
-chmod +x cuda_10.0.130_410.48_linux
-sudo ./cuda_10.0.130_410.48_linux
+pip install instagraal
 ```
 
-**Note to Ubuntu users**: Be aware that the installation script will fail if it isn't run as root, or if a graphical instance (e.g. X) is running as well. You may need to temporarily shut it down, for instance by switching to tty1 and running the following (prior to the installation script):
+### With uv (for development)
+
+[uv](https://docs.astral.sh/uv/) is a fast Python package manager. To set up a development environment:
 
 ```sh
-sudo service lightdm stop
+git clone https://github.com/koszullab/instagraal.git
+cd instagraal
+uv sync               # creates .venv and installs all dependencies
+uv run instagraal -h  # run instagraal from the dev environment
 ```
 
-(Replace ```lightdm``` with ```mdm```, ```gdm``` or whichever login manager is present on your machine if that fails; if all else fails as well, you may have to run something like ```sudo pkill Xorg``` instead.)
-
-**Note to OS X users**: There is currently [no CUDA support](https://devtalk.nvidia.com/default/topic/1042279/cuda-10-and-macos-10-14/) on Mojave (10.14) and it is unclear when it is going to be added, if it is to be added at all. This means instaGRAAL (or indeed any CUDA-based application) will *not* work on Mojave. If you wish to run it on OS X, the only solution for now is to downgrade to High Sierra (10.13).
-
-#### Recommended libraries
-
-Because some Python dependencies (such as ```pyopengl``` or ```h5py```) require to be built against specific files, it is recommended that you install the following packages if you encounter errors.
-
-##### OpenGL libraries
-
-* ```libglu1-mesa```
-* ```libxi-dev```
-* ```libxmu-dev```
-* ```libglu1-mesa-dev```
-* ```freeglut3-dev```
-
-##### HDF5 serialization library
-
-* ```hdf5-tools``` (```hdf5``` for OS X in brew)
-
-##### Boost libraries
-
-* ```libboost-all-dev``` (```boost``` and ```boost-python``` for OS X in brew)
-
-#### Python dependencies
-
-Python package requirements should be handled automatically by ```pip```, but should you
-wish to install them manually, these are:
-
-* ```numpy```
-* ```scipy```
-* ```matplotlib```
-* ```codepy```
-* ```h5py```
-* ```pyopengl```
-* ```docopt```
-* ```biopython```
-
-They can also be handily installed using the supplied requirements file in the repo:
-
-```sh
-pip3 install -Ur requirements.txt
-```
-
-You will also need to build  ```pycuda``` with OpenGL support and **disable** its use of custom Boost libraries. Installing it directly from PyPI will cause errors at runtime. Here is how to do it manually with Git on Ubuntu or OS X:
-
-```sh
-git clone --recurse-submodules https://github.com/inducer/pycuda.git
-cd pycuda
-python3 configure.py --cuda-enable-gl --no-use-shipped-boost
-sudo python3 setup.py install
-```
-
-You may run (as root)  ```instagraal-setup```, an all-in-one script to handle all the above dependencies on Ubuntu 17+.
-
-### Container
-
-There is experimental Docker support for instaGRAAL. You may fetch the corresponding image by running the following:
-
-```sh
-docker pull koszullab/instagraal
-```
-And run it with
-```sh
-docker run --gpus all koszullab/instagraal
-```
-
-> Note: Running the container requires the dependency nvidia-docker2 \[[installation](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker)\]
-
-## Usage
+## How to use
 
 Unlike GRAAL, this is meant to be run from the command line.
 
@@ -249,76 +246,30 @@ This is due to spaces and special characters in contig names. Check that the con
 
 ### Loading CUDA libraries
 
-If you encounter the following error, *despite* having installed the NVIDIA CUDA Toolkit:
+If you encounter an error like:
 
-    ImportError: libcurand.so.9.2: cannot open shared object file: No such file or directory
+    ImportError: libcurand.so.X.Y: cannot open shared object file: No such file or directory
 
-it probably means the CUDA-related libraries haven't been properly added to your ```$PATH``` for some reason. A quick solution is to simply add this at the end of your ```.bashrc``` or ```.bash_profile``` (replace the paths with wherever you installed the toolkit and change the version number accordingly):
-
-    export PATH=/usr/local/cuda-9.2/bin${PATH:+:${PATH}}
-    export LD_LIBRARY_PATH=/usr/local/cuda-9.2/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
-
-### Remote running
-
-If you encounter the following error:
-
-    freeglut (instagraal.py): failed to open display ''
-
-it most likely means you attempted to run an instaGRAAL instance remotely (e.g. over ssh) but didn't configure a proper ```$DISPLAY``` variable. In order to avoid this, simply run the following beforehand:
-
-    export DISPLAY=:0
-
-Note that this will disable the movie (it will play on the remote machine instead).
-
-However, instaGRAAL is based on OpenGL, which means there has to be an X server of some kind running on your target machine no matter what. While this allows for pretty movies and visualizations, it may prove problematic on an environment you don't have total control over, *e.g.* a server cluster. Currently, your best bet is asking the system administrator of the target machine to set up an X instance (possibly virtual, such as Xvfb or ```xserver-xorg-video-dummy```) if they haven't already.
-
-### PyOpenGL/GLUT error
-
-If you encounter the following:
-
-    NullFunctionError: Attempt to call an undefined function glutInit, check for bool(glutInit) before calling
-
-check whether you have installed ```freeglut3-dev```. It seems that the ```pyopengl``` library [does not include a GLUT implementation](https://stackoverflow.com/questions/26700719/pyopengl-glutinit-nullfunctionerror) when installed from PyPI. Alternatively, just installing ```pyopengl``` with your package manager (*e.g.* ```python3-pyopengl``` on Ubuntu) seems to work as well.
-
-### Codepy toolchain
-
-If you encounter an error like the following :
-
-      File "/usr/local/lib/python3.6/dist-packages/codepy/toolchain.py", line 382, in _guess_toolchain_kwargs_from_python_config
-    object_suffix = '.' + make_vars['MODOBJS'].split()[0].split('.')[1]
-    IndexError: list index out of range
-
-You may need to upgrade to a more recent version of ```codepy```.
+the CUDA libraries are not in your library path. Make sure the toolkit is loaded and paths are set:
 
 ```sh
-sudo pip3 install --upgrade --no-cache-dir -e git+https://github.com/inducer/codepy.git@master#egg=codepy
+# On HPC clusters:
+module load cuda/12.9
+
+# Or manually (adjust path to match your installation):
+export PATH=/usr/local/cuda/bin${PATH:+:${PATH}}
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 ```
 
-No such error has been found as of commit [10a014f](https://github.com/inducer/codepy/tree/10a014f), so if you encounter regressions after this, you should stick to that version.
+### `cuda.h: No such file or directory` during installation
 
-Depending on your system, you may also need to upgrade to gcc/g++ 8:
-
-```sh
-sudo apt install gcc-8 g++-8
-```
-
-If for some reason your system does not automatically switch to gcc/g++-8, you should manually configure your system to do so, *e.g.* on Ubuntu:
-
-```sh
-sudo update-alternatives --remove-all gcc 
-sudo update-alternatives --remove-all g++
-
-sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 10
-sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 10
-```
+This means the CUDA toolkit is not installed or not in your `$PATH`. Having the NVIDIA driver (`nvidia-smi` works) is **not** enough — you need the full toolkit (`nvcc`, headers, libraries). See [Prerequisites](#prerequisites).
 
 ### General tips
 
-* instaGRAAL will attempt to detect already-built pyramids in hdf5 format, but if building was interrupted for some reason, and you re-run the pyramid building step, the hdf5 files will still be there, but corrupted. You will need to manually delete the ```pyramids``` folder and try again.
+* instaGRAAL will attempt to detect already-built pyramids in hdf5 format, but if building was interrupted for some reason, and you re-run the pyramid building step, the hdf5 files will still be there, but corrupted. You will need to manually delete the `pyramids` folder and try again.
 
-* If there is a mismatch between the version of CUDA you installed and the one instaGRAAL seems to rely on (*e.g.* you installed CUDA 10 but instaGRAAL complains that it can't find ```libcurand.so.9.1```), try reinstalling ```pycuda``` and ```instagraal``` with the ```--no-cache-dir``` option.
-
-* You may experience issues if you handle dependencies with conda, such as ```pycuda``` failing to build because some header files that would be present when you installed ```libboost-all-dev``` aren't automatically recognized. If you don't want to manually mess with your ```$PATH```, it's probably best to just deactivate conda altogether and install everything with your OS's normal package manger (and ```pip```).
+* If there is a mismatch between the version of CUDA you installed and the one instaGRAAL seems to rely on, try reinstalling `pycuda` and `instagraal` with the `--no-cache-dir` option.
 
 ## Documentation
 
