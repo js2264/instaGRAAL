@@ -70,7 +70,7 @@ module avail boost
 module load boost/1.89.0
 ```
 
-**Important:** The Boost.Python library must match your Python version. For example, if Boost was built with `libboost_python312.so` but you use Python 3.13, linking will fail. Check what's available:
+**Important:** The Boost.Python library must match your Python version. For example, if Boost was built with `libboost_python312.so` but you use Python 3.13, linking will fail.
 
 #### On Ubuntu / Debian
 
@@ -101,11 +101,6 @@ Build the image:
 
 ```sh
 docker build -t instagraal .
-```
-
-Run instaGRAAL:
-
-```sh
 docker run --gpus all -v /path/to/data:/work instagraal \
   instagraal hic_folder reference.fa output
 ```
@@ -114,6 +109,7 @@ docker run --gpus all -v /path/to/data:/work instagraal \
 
 ```sh
 pip install instagraal
+instagraal hic_folder reference.fa output
 ```
 
 ### With uv (for development)
@@ -124,8 +120,8 @@ pip install instagraal
 git clone https://github.com/koszullab/instagraal.git
 cd instagraal
 uv python install 3.12
-uv sync --python 3.12 # creates .venv and installs all dependencies
-uv run instagraal -h  # run instagraal from the dev environment
+uv sync --python 3.12  # creates .venv and installs all dependencies
+uv run instagraal hic_folder reference.fa output  # run instagraal from the dev environment
 ```
 
 ## How to use
