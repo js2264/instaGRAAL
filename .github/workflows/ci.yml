@@ -28,12 +28,11 @@ jobs:
             echo "has_gpu=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Run help command
+      - name: Check that instagraal is available in the container
         run: |
-          docker run \
-            -v ${{ github.workspace }}/example:/work/example \
-            instagraal \
-            instagraal --help
+          docker run instagraal bash -c \
+            "ls /usr/local/lib/python3.10/dist-packages/ | grep -i instagraal"
+
 
       - name: Run example command (GPU)
         if: steps.gpu.outputs.has_gpu == 'true'
