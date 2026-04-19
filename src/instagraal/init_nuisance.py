@@ -18,18 +18,10 @@ def log_residuals_4_min(param, y, x):
 
     d_init, alpha_0, alpha_1, A = param
     hic_c = np.zeros(x.shape)
-    log_val_lim_0 = (
-        np.log(A)
-        + (alpha_0 - alpha_1) * np.log(d_init)
-        + ((d_exp - 2) / (np.power(d_init, 2) + d_exp))
-    )
+    log_val_lim_0 = np.log(A) + (alpha_0 - alpha_1) * np.log(d_init) + ((d_exp - 2) / (np.power(d_init, 2) + d_exp))
     for i in range(0, len(hic_c)):
         if x[i] < d_init and x[i] > 0:
-            hic_c[i] = (
-                np.log(A)
-                + np.log(x[i]) * alpha_0
-                + ((d_exp - 2) / (np.power(x[i], 2) + d_exp))
-            )
+            hic_c[i] = np.log(A) + np.log(x[i]) * alpha_0 + ((d_exp - 2) / (np.power(x[i], 2) + d_exp))
         else:
             hic_c[i] = log_val_lim_0 + np.log(x[i]) * alpha_1
 
@@ -42,20 +34,12 @@ def log_residuals(param, y, x):
 
     alpha_0, alpha_1, A = param
     hic_c = np.zeros(x.shape)
-    log_val_lim_0 = (
-        np.log(A)
-        + (alpha_0 - alpha_1) * np.log(d0)
-        + ((d_exp - 2) / (np.power(d0, 2) + d_exp))
-    )
+    log_val_lim_0 = np.log(A) + (alpha_0 - alpha_1) * np.log(d0) + ((d_exp - 2) / (np.power(d0, 2) + d_exp))
     for i in range(0, len(hic_c)):
         if x[i] <= 0:
             hic_c[i] = 0
         elif x[i] < d0 and x[i] > 0:
-            hic_c[i] = (
-                np.log(A)
-                + np.log(x[i]) * alpha_0
-                + ((d_exp - 2) / (np.power(x[i], 2) + d_exp))
-            )
+            hic_c[i] = np.log(A) + np.log(x[i]) * alpha_0 + ((d_exp - 2) / (np.power(x[i], 2) + d_exp))
         else:
             hic_c[i] = log_val_lim_0 + np.log(x[i]) * alpha_1
 
@@ -84,18 +68,10 @@ def peval(x, param):
 
     d_init, alpha_0, alpha_1, A = param
     hic_c = np.zeros(x.shape)
-    val_lim_0 = (
-        A
-        * np.power(d_init, alpha_0 - alpha_1)
-        * np.exp((d_exp - 2) / (np.power(d_init, 2) + d_exp))
-    )
+    val_lim_0 = A * np.power(d_init, alpha_0 - alpha_1) * np.exp((d_exp - 2) / (np.power(d_init, 2) + d_exp))
     for i in range(0, len(hic_c)):
         if x[i] < d_init:
-            hic_c[i] = (
-                A
-                * np.power(x[i], alpha_0)
-                * np.exp((d_exp - 2) / (np.power(x[i], 2) + d_exp))
-            )
+            hic_c[i] = A * np.power(x[i], alpha_0) * np.exp((d_exp - 2) / (np.power(x[i], 2) + d_exp))
         else:
             hic_c[i] = val_lim_0 * np.power(x[i], alpha_1)
 
@@ -107,11 +83,7 @@ def estimate_param_hic(y_meas, x_bins):
     alpha_1 = -1.5
     x0 = x_bins.min()
     print("x0 = ", x0)
-    A = (
-        y_meas.max()
-        * (x0 ** (-alpha_0))
-        / np.exp((d_exp - 2) / (x0 ** 2 + d_exp))
-    )
+    A = y_meas.max() * (x0 ** (-alpha_0)) / np.exp((d_exp - 2) / (x0**2 + d_exp))
     print("A = ", A)
     p0 = [alpha_0, alpha_1, A]
     args = (np.log(y_meas), x_bins)
@@ -148,18 +120,10 @@ def estimate_param_hic(y_meas, x_bins):
 def residual_4_max_dist(x, p):
     d_init, alpha_0, alpha_1, A, y = p
     hic_c = np.zeros(x.shape)
-    val_lim_0 = (
-        A
-        * np.power(d_init, alpha_0 - alpha_1)
-        * np.exp((d_exp - 2) / (np.power(d_init, 2) + d_exp))
-    )
+    val_lim_0 = A * np.power(d_init, alpha_0 - alpha_1) * np.exp((d_exp - 2) / (np.power(d_init, 2) + d_exp))
     for i in range(0, len(hic_c)):
         if x[i] < d_init:
-            hic_c[i] = (
-                A
-                * np.power(x[i], alpha_0)
-                * np.exp((d_exp - 2) / (np.power(x[i], 2) + d_exp))
-            )
+            hic_c[i] = A * np.power(x[i], alpha_0) * np.exp((d_exp - 2) / (np.power(x[i], 2) + d_exp))
         else:
             hic_c[i] = val_lim_0 * np.power(x[i], alpha_1)
     err = y - hic_c

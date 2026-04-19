@@ -28,7 +28,7 @@ def file_len(fname):
 
 def build_and_filter(base_folder, size_pyramid, factor, thresh_factor=1):
     """Build a filtered pyramid of contact maps
- 
+
     Build a fragment pyramid for multi-scale analysis and remove high sparsity
     (i.e. low-coverage) and short fragments.
 
@@ -56,28 +56,18 @@ def build_and_filter(base_folder, size_pyramid, factor, thresh_factor=1):
     all_pyramid_folder = os.path.join(base_folder, "pyramids")
     if not (os.path.exists(all_pyramid_folder)):
         os.mkdir(all_pyramid_folder)
-    init_pyramid_folder = os.path.join(
-        all_pyramid_folder, "pyramid_" + str(1) + "_no_thresh"
-    )
+    init_pyramid_folder = os.path.join(all_pyramid_folder, "pyramid_" + str(1) + "_no_thresh")
     if not (os.path.exists(init_pyramid_folder)):
         init_size_pyramid = 1
         build(base_folder, init_size_pyramid, factor, min_bin_per_contig)
     init_pyramid_folder_level_0 = os.path.join(init_pyramid_folder, "level_0")
-    contig_info = os.path.join(
-        init_pyramid_folder_level_0, "0_contig_info.txt"
-    )
-    fragments_list = os.path.join(
-        init_pyramid_folder_level_0, "0_fragments_list.txt"
-    )
-    init_abs_fragments_contacts = os.path.join(
-        init_pyramid_folder_level_0, "0_abs_frag_contacts.txt"
-    )
+    contig_info = os.path.join(init_pyramid_folder_level_0, "0_contig_info.txt")
+    fragments_list = os.path.join(init_pyramid_folder_level_0, "0_fragments_list.txt")
+    init_abs_fragments_contacts = os.path.join(init_pyramid_folder_level_0, "0_abs_frag_contacts.txt")
 
     init_pyramid_file = os.path.join(init_pyramid_folder, "pyramid.hdf5")
 
-    pyramid_folder = os.path.join(
-        all_pyramid_folder, "pyramid_" + str(size_pyramid) + "_thresh_auto"
-    )
+    pyramid_folder = os.path.join(all_pyramid_folder, "pyramid_" + str(size_pyramid) + "_thresh_auto")
     if not (os.path.exists(pyramid_folder)):
         os.mkdir(pyramid_folder)
     level = 0
@@ -85,15 +75,9 @@ def build_and_filter(base_folder, size_pyramid, factor, thresh_factor=1):
     if not (os.path.exists(pyramid_level_folder)):
         os.mkdir(pyramid_level_folder)
 
-    current_contig_info = os.path.join(
-        pyramid_level_folder, str(level) + "_contig_info.txt"
-    )
-    current_frag_list = os.path.join(
-        pyramid_level_folder, str(level) + "_fragments_list.txt"
-    )
-    current_abs_fragments_contacts = os.path.join(
-        pyramid_level_folder, str(level) + "_abs_frag_contacts.txt"
-    )
+    current_contig_info = os.path.join(pyramid_level_folder, str(level) + "_contig_info.txt")
+    current_frag_list = os.path.join(pyramid_level_folder, str(level) + "_fragments_list.txt")
+    current_abs_fragments_contacts = os.path.join(pyramid_level_folder, str(level) + "_abs_frag_contacts.txt")
     if not (
         os.path.exists(current_contig_info)
         and os.path.exists(current_frag_list)
@@ -123,25 +107,15 @@ def build_and_filter(base_folder, size_pyramid, factor, thresh_factor=1):
 
     pyramid_level_folder = os.path.join(pyramid_folder, "level_" + str(level))
     level_pyramid = str(level) + "_"
-    sub_2_super_frag_index_file = os.path.join(
-        pyramid_level_folder, level_pyramid + "sub_2_super_index_frag.txt"
-    )
+    sub_2_super_frag_index_file = os.path.join(pyramid_level_folder, level_pyramid + "sub_2_super_index_frag.txt")
     for level in range(0, size_pyramid):
-        pyramid_level_folder = os.path.join(
-            pyramid_folder, "level_" + str(level)
-        )
+        pyramid_level_folder = os.path.join(pyramid_folder, "level_" + str(level))
         if not (os.path.exists(pyramid_level_folder)):
             os.mkdir(pyramid_level_folder)
         level_pyramid = str(level) + "_"
-        new_contig_list_file = os.path.join(
-            pyramid_level_folder, level_pyramid + "contig_info.txt"
-        )
-        new_fragments_list_file = os.path.join(
-            pyramid_level_folder, level_pyramid + "fragments_list.txt"
-        )
-        new_abs_fragments_contacts_file = os.path.join(
-            pyramid_level_folder, level_pyramid + "abs_frag_contacts.txt"
-        )
+        new_contig_list_file = os.path.join(pyramid_level_folder, level_pyramid + "contig_info.txt")
+        new_fragments_list_file = os.path.join(pyramid_level_folder, level_pyramid + "fragments_list.txt")
+        new_abs_fragments_contacts_file = os.path.join(pyramid_level_folder, level_pyramid + "abs_frag_contacts.txt")
 
         if level > 0:
             if (
@@ -185,17 +159,13 @@ def build_and_filter(base_folder, size_pyramid, factor, thresh_factor=1):
             # (nfrags,nfrags), 'i')
             # fill_pyramid_level(level_to_fill,new_abs_fragments_contacts_file,
             # size_chunk,nfrags)
-            fill_sparse_pyramid_level(
-                pyramid_handle, level, new_abs_fragments_contacts_file, nfrags
-            )
+            fill_sparse_pyramid_level(pyramid_handle, level, new_abs_fragments_contacts_file, nfrags)
             pyramid_handle.attrs[str(level)] = "done"
 
         current_frag_list = new_fragments_list_file
         current_contig_info = new_contig_list_file
         current_abs_fragments_contacts = new_abs_fragments_contacts_file
-        sub_2_super_frag_index_file = os.path.join(
-            pyramid_level_folder, level_pyramid + "sub_2_super_index_frag.txt"
-        )
+        sub_2_super_frag_index_file = os.path.join(pyramid_level_folder, level_pyramid + "sub_2_super_index_frag.txt")
     logger.info("pyramid built.")
 
     obj_pyramid = pyramid(pyramid_folder, size_pyramid)
@@ -207,7 +177,7 @@ def build(base_folder, size_pyramid, factor, min_bin_per_contig):
     """Build a pyramid of contact maps
 
     Build a fragment pyramid for multi-scale analysis
-    
+
     Parameters
     ----------
     base_folder : str or pathlib.Path
@@ -224,13 +194,9 @@ def build(base_folder, size_pyramid, factor, min_bin_per_contig):
     fact_sub_sampling = factor
     contig_info = os.path.join(base_folder, "info_contigs.txt")
     fragments_list = os.path.join(base_folder, "fragments_list.txt")
-    init_abs_fragments_contacts = os.path.join(
-        base_folder, "abs_fragments_contacts_weighted.txt"
-    )
+    init_abs_fragments_contacts = os.path.join(base_folder, "abs_fragments_contacts_weighted.txt")
     all_pyramid_folder = os.path.join(base_folder, "pyramids")
-    pyramid_folder = os.path.join(
-        all_pyramid_folder, "pyramid_" + str(size_pyramid) + "_no_thresh"
-    )
+    pyramid_folder = os.path.join(all_pyramid_folder, "pyramid_" + str(size_pyramid) + "_no_thresh")
 
     if not (os.path.exists(all_pyramid_folder)):
         os.mkdir(all_pyramid_folder)
@@ -245,27 +211,17 @@ def build(base_folder, size_pyramid, factor, min_bin_per_contig):
     if not (os.path.exists(pyramid_level_folder)):
         os.mkdir(pyramid_level_folder)
 
-    current_contig_info = os.path.join(
-        pyramid_level_folder, str(level) + "_contig_info.txt"
-    )
-    current_frag_list = os.path.join(
-        pyramid_level_folder, str(level) + "_fragments_list.txt"
-    )
-    current_abs_fragments_contacts = os.path.join(
-        pyramid_level_folder, str(level) + "_abs_frag_contacts.txt"
-    )
+    current_contig_info = os.path.join(pyramid_level_folder, str(level) + "_contig_info.txt")
+    current_frag_list = os.path.join(pyramid_level_folder, str(level) + "_fragments_list.txt")
+    current_abs_fragments_contacts = os.path.join(pyramid_level_folder, str(level) + "_abs_frag_contacts.txt")
     for level in range(0, size_pyramid):
-        pyramid_level_folder = os.path.join(
-            pyramid_folder, "level_" + str(level)
-        )
+        pyramid_level_folder = os.path.join(pyramid_folder, "level_" + str(level))
         if not (os.path.exists(pyramid_level_folder)):
             os.mkdir(pyramid_level_folder)
         level_pyramid = str(level) + "_"
         if level == 0:
             shutil.copyfile(contig_info, current_contig_info)
-            shutil.copyfile(
-                init_abs_fragments_contacts, current_abs_fragments_contacts
-            )
+            shutil.copyfile(init_abs_fragments_contacts, current_abs_fragments_contacts)
             nfrags = init_frag_list(fragments_list, current_frag_list)
             new_abs_fragments_contacts_file = current_abs_fragments_contacts
             new_contig_list_file = current_contig_info
@@ -277,12 +233,8 @@ def build(base_folder, size_pyramid, factor, min_bin_per_contig):
 
         else:
 
-            new_contig_list_file = os.path.join(
-                pyramid_level_folder, level_pyramid + "contig_info.txt"
-            )
-            new_fragments_list_file = os.path.join(
-                pyramid_level_folder, level_pyramid + "fragments_list.txt"
-            )
+            new_contig_list_file = os.path.join(pyramid_level_folder, level_pyramid + "contig_info.txt")
+            new_fragments_list_file = os.path.join(pyramid_level_folder, level_pyramid + "fragments_list.txt")
             new_abs_fragments_contacts_file = os.path.join(
                 pyramid_level_folder, level_pyramid + "abs_frag_contacts.txt"
             )
@@ -315,16 +267,12 @@ def build(base_folder, size_pyramid, factor, min_bin_per_contig):
             status = False
         if not (status):
             logger.info("Start filling the pyramid")
-            fill_sparse_pyramid_level(
-                pyramid_handle, level, new_abs_fragments_contacts_file, nfrags
-            )
+            fill_sparse_pyramid_level(pyramid_handle, level, new_abs_fragments_contacts_file, nfrags)
             pyramid_handle.attrs[str(level)] = "done"
         current_frag_list = new_fragments_list_file
         current_contig_info = new_contig_list_file
         current_abs_fragments_contacts = new_abs_fragments_contacts_file
-        sub_2_super_frag_index_file = os.path.join(
-            pyramid_level_folder, level_pyramid + "sub_2_super_index_frag.txt"
-        )
+        sub_2_super_frag_index_file = os.path.join(pyramid_level_folder, level_pyramid + "sub_2_super_index_frag.txt")
     logger.info("pyramid built.")
     pyramid_handle.close()
 
@@ -386,7 +334,7 @@ def fill_sparse_pyramid_level(pyramid_handle, level, contact_file, nfrags):
 
     Fill values from the simple text matrix file to the hdf5-based pyramid
     level with contact data.
-    
+
     Parameters
     ----------
     pyramid_handle : h5py.File
@@ -459,7 +407,7 @@ def init_frag_list(fragment_list, new_frag_list):
         The input fragment list.
     new_frag_list : str, file or pathlib.Path
         The output fragment list to be written.
-    
+
     Returns
     -------
     i : int
@@ -532,9 +480,7 @@ def subsample_data_set(
 ):
 
     logger.debug("fact sub sampling = {}".format(fact_sub_sample))
-    logger.debug(
-        "minimum bin numer per contig = {}".format(min_bin_per_contig)
-    )
+    logger.debug("minimum bin numer per contig = {}".format(min_bin_per_contig))
     if fact_sub_sample <= 1:
         logger.info("subsampling : nothing to do")
         shutil.copy(fragments_list, new_fragments_list_file)
@@ -553,10 +499,7 @@ def subsample_data_set(
         old_2_new_frags = dict()
         spec_new_frags = dict()
         handle_new_contigs_list = open(new_contig_list_file, "w")
-        handle_new_contigs_list.write(
-            "%s\t%s\t%s\t%s\n"
-            % ("contig", "length_kb", "n_frags", "cumul_length")
-        )
+        handle_new_contigs_list.write("%s\t%s\t%s\t%s\n" % ("contig", "length_kb", "n_frags", "cumul_length"))
 
         new_abs_id_frag = 0
         id_frag_abs = 0
@@ -579,9 +522,9 @@ def subsample_data_set(
             id_frag_end = int(data[2])
             length_kb = data[1]
             # orientation = "w"
-            condition_sub_sample = (
-                id_frag_end / np.float32(fact_sub_sample)
-            ) >= min_bin_per_contig and not (fact_sub_sample == 1)
+            condition_sub_sample = (id_frag_end / np.float32(fact_sub_sample)) >= min_bin_per_contig and not (
+                fact_sub_sample == 1
+            )
             accu_frag = 0
             new_rel_id_frag = 0
             id_frag_rel = 0
@@ -596,20 +539,14 @@ def subsample_data_set(
                         new_abs_id_frag += 1
                         new_rel_id_frag += 1
                         spec_new_frags[new_abs_id_frag] = dict()
-                        spec_new_frags[new_abs_id_frag][
-                            "frag_start"
-                        ] = id_frag_abs
-                        spec_new_frags[new_abs_id_frag][
-                            "frag_end"
-                        ] = id_frag_abs
+                        spec_new_frags[new_abs_id_frag]["frag_start"] = id_frag_abs
+                        spec_new_frags[new_abs_id_frag]["frag_end"] = id_frag_abs
 
                     accu_frag += 1
                     old_2_new_frags[id_frag_abs] = new_abs_id_frag
                     spec_new_frags[new_abs_id_frag]["accu_frag"] = accu_frag
                     spec_new_frags[new_abs_id_frag]["id_rel"] = new_rel_id_frag
-                    spec_new_frags[new_abs_id_frag][
-                        "init_contig"
-                    ] = init_contig
+                    spec_new_frags[new_abs_id_frag]["init_contig"] = init_contig
                     spec_new_frags[new_abs_id_frag]["gc_content"] = []
                     spec_new_frags[new_abs_id_frag]["size"] = []
                     spec_new_frags[new_abs_id_frag]["frag_end"] = id_frag_abs
@@ -643,9 +580,7 @@ def subsample_data_set(
             )
             # write new fragments list
         logger.info("size matrix before sub sampling = {}".format(id_frag_abs))
-        logger.info(
-            "size matrix after sub sampling = {}".format(new_abs_id_frag)
-        )
+        logger.info("size matrix after sub sampling = {}".format(new_abs_id_frag))
         logger.info("sum length contigs = {}".format(sum_length_contigs))
 
         # reading fragments list !!!! #######################################
@@ -676,17 +611,11 @@ def subsample_data_set(
 
             if id_abs == spec_new_frags[id_new]["frag_start"]:
                 spec_new_frags[id_new]["start_pos"] = start_pos
-                spec_new_frags[id_new][
-                    "init_frag_start"
-                ] = init_frag_start  # coord level 0
+                spec_new_frags[id_new]["init_frag_start"] = init_frag_start  # coord level 0
             if id_abs == spec_new_frags[id_new]["frag_end"]:
                 spec_new_frags[id_new]["end_pos"] = end_pos
-                spec_new_frags[id_new]["size"] = (
-                    end_pos - spec_new_frags[id_new]["start_pos"]
-                )
-                spec_new_frags[id_new][
-                    "init_frag_end"
-                ] = init_frag_end  # coord level 0
+                spec_new_frags[id_new]["size"] = end_pos - spec_new_frags[id_new]["start_pos"]
+                spec_new_frags[id_new]["init_frag_end"] = init_frag_end  # coord level 0
 
         keys_new_frags = list(spec_new_frags.keys())
         keys_new_frags.sort()
@@ -713,9 +642,7 @@ def subsample_data_set(
         for new_frag in keys_new_frags:
             id = str(spec_new_frags[new_frag]["id_rel"])
 
-            gc_content = np.array(
-                spec_new_frags[new_frag]["gc_content"]
-            ).mean()
+            gc_content = np.array(spec_new_frags[new_frag]["gc_content"]).mean()
             size = spec_new_frags[new_frag]["size"]
 
             start_pos = spec_new_frags[new_frag]["start_pos"]
@@ -751,13 +678,9 @@ def subsample_data_set(
         # be carefull : le dictionnaire est base sur
         if not (abs_fragments_contacts == "SIMU"):
             logger.info("update sparse contacts file...")  # index 0 based
-            handle_new_abs_fragments_contacts = open(
-                new_abs_fragments_contacts_file, "w"
-            )
+            handle_new_abs_fragments_contacts = open(new_abs_fragments_contacts_file, "w")
             handle_abs_fragments_contacts = open(abs_fragments_contacts, "r")
-            handle_new_abs_fragments_contacts.write(
-                "%s\t%s\t%s\n" % ("id_frag_a", "id_frag_b", "n_contact")
-            )
+            handle_new_abs_fragments_contacts.write("%s\t%s\t%s\n" % ("id_frag_a", "id_frag_b", "n_contact"))
             handle_abs_fragments_contacts.readline()
             all_lines = handle_abs_fragments_contacts.readlines()
             sparse_dict = dict()
@@ -767,12 +690,8 @@ def subsample_data_set(
                 fa = int(dat[0])
                 fb = int(dat[1])
                 nc = int(dat[2])
-                new_abs_id_frag_a = old_2_new_frags[
-                    fa + 1
-                ]  # old_2_new_frags 1-based index
-                new_abs_id_frag_b = old_2_new_frags[
-                    fb + 1
-                ]  # old_2_new_frags 1-based index
+                new_abs_id_frag_a = old_2_new_frags[fa + 1]  # old_2_new_frags 1-based index
+                new_abs_id_frag_b = old_2_new_frags[fb + 1]  # old_2_new_frags 1-based index
                 mates = [new_abs_id_frag_a - 1, new_abs_id_frag_b - 1]
                 mates.sort()
                 f1 = mates[0]
@@ -793,9 +712,7 @@ def subsample_data_set(
                 keys_b.sort()
                 for fb in keys_b:
                     nc = d_fb[fb]
-                    handle_new_abs_fragments_contacts.write(
-                        "%s\t%s\t%s\n" % (str(fa), str(fb), str(nc))
-                    )
+                    handle_new_abs_fragments_contacts.write("%s\t%s\t%s\n" % (str(fa), str(fb), str(nc)))
             handle_new_abs_fragments_contacts.close()
 
         logger.info("subsampling: done.")
@@ -840,9 +757,7 @@ def remove_problematic_fragments(
     )
 
     full_mat = sparse_mat_csr + sparse_mat_csr.transpose()
-    collect_sparsity = np.float32(np.diff(full_mat.indptr)) / np.float32(
-        nfrags
-    )
+    collect_sparsity = np.float32(np.diff(full_mat.indptr)) / np.float32(nfrags)
     mean_spars = collect_sparsity.mean()
     std_spars = collect_sparsity.std()
     max_spars = collect_sparsity.max()
@@ -878,9 +793,7 @@ def remove_problematic_fragments(
     logger.info("thresh sparsity = {}".format(thresh))
     # plt.show()
     list_fragments_problem = list(np.nonzero(collect_sparsity <= thresh)[0])
-    list_fragments_problem_too_large = list(
-        np.nonzero(collect_sparsity > thresh_max)[0]
-    )
+    list_fragments_problem_too_large = list(np.nonzero(collect_sparsity > thresh_max)[0])
     list_fragments_problem.extend(list_fragments_problem_too_large)
     # print(np.array(list_fragments_problem))
 
@@ -915,11 +828,7 @@ def remove_problematic_fragments(
     list_fragments_problem = list(list_fragments_problem)
     list_fragments_problem.extend(list_short_frags)
     list_fragments_problem = np.unique(list_fragments_problem)
-    logger.info(
-        "number of fragments to remove = {}".format(
-            len(list_fragments_problem)
-        )
-    )
+    logger.info("number of fragments to remove = {}".format(len(list_fragments_problem)))
 
     # build Contigs.init_contigs dictionary ( need to know the number of frags
     # per contig)
@@ -1025,9 +934,7 @@ def remove_problematic_fragments(
         if not lock:
             for ele in tmp_cumul["list_chrom"]:
                 if not (ele == tmp_cumul["list_chrom"][0]):
-                    logger.info(
-                        "warning problem hetero fragments!!!!!!!!!!!!!!!"
-                    )
+                    logger.info("warning problem hetero fragments!!!!!!!!!!!!!!!")
 
             contig_info_dict[chrom]["n_new_frags"] += 1
             contig_info_dict[chrom]["length_kb"] += tmp_cumul["size"]
@@ -1071,9 +978,7 @@ def remove_problematic_fragments(
 
     logger.debug("max new id = {}".format(new_id_frag_abs))
     handle_new_contigs_list = open(new_contig_list_file, "w")
-    handle_new_contigs_list.write(
-        "%s\t%s\t%s\t%s\n" % ("contig", "length_kb", "n_frags", "cumul_length")
-    )
+    handle_new_contigs_list.write("%s\t%s\t%s\t%s\n" % ("contig", "length_kb", "n_frags", "cumul_length"))
 
     handle_contig_info = open(contig_info, "r")
     handle_contig_info.readline()
@@ -1092,8 +997,7 @@ def remove_problematic_fragments(
         n_frags = contig_info_dict[contig]["n_new_frags"]
         if n_frags > 0:
             handle_new_contigs_list.write(
-                "%s\t%s\t%s\t%s\n"
-                % (contig, str(length_kb), str(n_frags), str(cumul_length))
+                "%s\t%s\t%s\t%s\n" % (contig, str(length_kb), str(n_frags), str(cumul_length))
             )
             cumul_length += n_frags
         else:
@@ -1101,14 +1005,10 @@ def remove_problematic_fragments(
     logger.info("update contacts files...")
     # write new contacts file
     # n_total_contacts = file_len(abs_fragments_contacts)
-    handle_new_abs_fragments_contacts = open(
-        new_abs_fragments_contacts_file, "w"
-    )
+    handle_new_abs_fragments_contacts = open(new_abs_fragments_contacts_file, "w")
     handle_abs_fragments_contacts = open(abs_fragments_contacts, "r")
 
-    handle_new_abs_fragments_contacts.write(
-        "%s\t%s\t%s\n" % ("id_frag_a", "id_frag_b", "n_contact")
-    )
+    handle_new_abs_fragments_contacts.write("%s\t%s\t%s\n" % ("id_frag_a", "id_frag_b", "n_contact"))
     all_lines = handle_abs_fragments_contacts.readlines()
 
     #     for id_line_contacts in xrange(1, len(all_lines_contact)):
@@ -1138,16 +1038,9 @@ def remove_problematic_fragments(
         fa = int(dat[0])
         fb = int(dat[1])
         nc = int(dat[2])
-        new_abs_id_frag_a = old_2_new_frags[
-            fa + 1
-        ]  # old_2_new_frags 1-based index
-        new_abs_id_frag_b = old_2_new_frags[
-            fb + 1
-        ]  # old_2_new_frags 1-based index
-        if not (
-            new_abs_id_frag_a == "destroyed"
-            or new_abs_id_frag_b == "destroyed"
-        ):
+        new_abs_id_frag_a = old_2_new_frags[fa + 1]  # old_2_new_frags 1-based index
+        new_abs_id_frag_b = old_2_new_frags[fb + 1]  # old_2_new_frags 1-based index
+        if not (new_abs_id_frag_a == "destroyed" or new_abs_id_frag_b == "destroyed"):
             mates = [new_abs_id_frag_a - 1, new_abs_id_frag_b - 1]
             mates.sort()
             f1 = mates[0]
@@ -1168,9 +1061,7 @@ def remove_problematic_fragments(
         keys_b.sort()
         for fb in keys_b:
             nc = d_fb[fb]
-            handle_new_abs_fragments_contacts.write(
-                "%s\t%s\t%s\n" % (str(fa), str(fb), str(nc))
-            )
+            handle_new_abs_fragments_contacts.write("%s\t%s\t%s\n" % (str(fa), str(fb), str(nc)))
     handle_new_abs_fragments_contacts.close()
 
     return thresh
@@ -1249,9 +1140,7 @@ def new_remove_problematic_fragments(
         shape=(nfrags, nfrags),
     )
     full_mat = sparse_mat_csr + sparse_mat_csr.transpose()
-    collect_sparsity = np.float32(np.diff(full_mat.indptr)) / np.float32(
-        nfrags
-    )
+    collect_sparsity = np.float32(np.diff(full_mat.indptr)) / np.float32(nfrags)
     mean_spars = collect_sparsity.mean()
     std_spars = collect_sparsity.std()
     max_spars = collect_sparsity.max()
@@ -1267,11 +1156,7 @@ def new_remove_problematic_fragments(
     plt.show()
     list_fragments_problem = np.nonzero(collect_sparsity <= thresh)[0]
 
-    logger.info(
-        "number of fragments to remove = {}".format(
-            len(list_fragments_problem)
-        )
-    )
+    logger.info("number of fragments to remove = {}".format(len(list_fragments_problem)))
     handle_new_fragments_list = open(new_fragments_list_file, "w")
     handle_new_fragments_list.write(
         "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
@@ -1394,9 +1279,7 @@ def new_remove_problematic_fragments(
         if not lock:
             for ele in tmp_cumul["list_chrom"]:
                 if not (ele == tmp_cumul["list_chrom"][0]):
-                    logger.info(
-                        "warning problem hetero fragments!!!!!!!!!!!!!!!"
-                    )
+                    logger.info("warning problem hetero fragments!!!!!!!!!!!!!!!")
 
             contig_info_dict[chrom]["n_new_frags"] += 1
             contig_info_dict[chrom]["length_kb"] += tmp_cumul["size"]
@@ -1441,9 +1324,7 @@ def new_remove_problematic_fragments(
     # Update contig info file
     logger.debug("max new id = {}".format(new_id_frag_abs))
     handle_new_contigs_list = open(new_contig_list_file, "w")
-    handle_new_contigs_list.write(
-        "%s\t%s\t%s\t%s\n" % ("contig", "length_kb", "n_frags", "cumul_length")
-    )
+    handle_new_contigs_list.write("%s\t%s\t%s\t%s\n" % ("contig", "length_kb", "n_frags", "cumul_length"))
 
     handle_contig_info = open(contig_info, "r")
     handle_contig_info.readline()
@@ -1462,21 +1343,16 @@ def new_remove_problematic_fragments(
         n_frags = contig_info_dict[contig]["n_new_frags"]
         if n_frags > 0:
             handle_new_contigs_list.write(
-                "%s\t%s\t%s\t%s\n"
-                % (contig, str(length_kb), str(n_frags), str(cumul_length))
+                "%s\t%s\t%s\t%s\n" % (contig, str(length_kb), str(n_frags), str(cumul_length))
             )
             cumul_length += n_frags
         else:
             logger.info(contig + " has been deleted...")
 
     logger.info("update contacts files...")
-    handle_new_abs_fragments_contacts = open(
-        new_abs_fragments_contacts_file, "w"
-    )
+    handle_new_abs_fragments_contacts = open(new_abs_fragments_contacts_file, "w")
     handle_abs_fragments_contacts = open(abs_fragments_contacts, "r")
-    handle_new_abs_fragments_contacts.write(
-        "%s\t%s\t%s\n" % ("id_frag_a", "id_frag_b", "n_contact")
-    )
+    handle_new_abs_fragments_contacts.write("%s\t%s\t%s\n" % ("id_frag_a", "id_frag_b", "n_contact"))
     all_lines = handle_abs_fragments_contacts.readlines()
     sparse_dict = dict()
     for id_line in range(1, len(all_lines)):
@@ -1485,16 +1361,9 @@ def new_remove_problematic_fragments(
         fa = int(dat[0])
         fb = int(dat[1])
         nc = int(dat[2])
-        new_abs_id_frag_a = old_2_new_frags[
-            fa + 1
-        ]  # old_2_new_frags 1-based index
-        new_abs_id_frag_b = old_2_new_frags[
-            fb + 1
-        ]  # old_2_new_frags 1-based index
-        if not (
-            new_abs_id_frag_a == "destroyed"
-            or new_abs_id_frag_b == "destroyed"
-        ):
+        new_abs_id_frag_a = old_2_new_frags[fa + 1]  # old_2_new_frags 1-based index
+        new_abs_id_frag_b = old_2_new_frags[fb + 1]  # old_2_new_frags 1-based index
+        if not (new_abs_id_frag_a == "destroyed" or new_abs_id_frag_b == "destroyed"):
             mates = [new_abs_id_frag_a - 1, new_abs_id_frag_b - 1]
             mates.sort()
             f1 = mates[0]
@@ -1515,9 +1384,7 @@ def new_remove_problematic_fragments(
         keys_b.sort()
         for fb in keys_b:
             nc = d_fb[fb]
-            handle_new_abs_fragments_contacts.write(
-                "%s\t%s\t%s\n" % (str(fa), str(fb), str(nc))
-            )
+            handle_new_abs_fragments_contacts.write("%s\t%s\t%s\n" % (str(fa), str(fb), str(nc)))
     handle_new_abs_fragments_contacts.close()
 
 
@@ -1543,20 +1410,14 @@ class pyramid:
             find_super_index = i < n_levels - 1
             self.spec_level[str(i)] = dict()
             self.spec_level[str(i)]["level_folder"] = level_folder
-            self.spec_level[str(i)]["fragments_list_file"] = os.path.join(
-                level_folder, str(i) + "_fragments_list.txt"
-            )
-            self.spec_level[str(i)]["contig_info_file"] = os.path.join(
-                level_folder, str(i) + "_contig_info.txt"
-            )
+            self.spec_level[str(i)]["fragments_list_file"] = os.path.join(level_folder, str(i) + "_fragments_list.txt")
+            self.spec_level[str(i)]["contig_info_file"] = os.path.join(level_folder, str(i) + "_contig_info.txt")
             (
                 frag_dictionary,
                 contig_dictionary,
                 list_contigs,
                 list_contigs_id,
-            ) = self.build_frag_dictionnary(
-                self.spec_level[str(i)]["fragments_list_file"], i
-            )
+            ) = self.build_frag_dictionnary(self.spec_level[str(i)]["fragments_list_file"], i)
             if i == 0:
                 self.list_contigs_name = list_contigs
                 self.list_contigs_id = list_contigs_id
@@ -1565,20 +1426,14 @@ class pyramid:
 
             if find_super_index:
                 # print "update super index"
-                super_index_file = os.path.join(
-                    level_folder, str(i) + "_sub_2_super_index_frag.txt"
-                )
-                self.update_super_index(
-                    self.spec_level[str(i)]["fragments_dict"], super_index_file
-                )
+                super_index_file = os.path.join(level_folder, str(i) + "_sub_2_super_index_frag.txt")
+                self.update_super_index(self.spec_level[str(i)]["fragments_dict"], super_index_file)
                 self.update_super_index_in_dict_contig(
                     self.spec_level[str(i)]["fragments_dict"],
                     self.spec_level[str(i)]["contigs_dict"],
                 )
             else:
-                for contig_id in list(
-                    self.spec_level[str(i)]["contigs_dict"].keys()
-                ):
+                for contig_id in list(self.spec_level[str(i)]["contigs_dict"].keys()):
                     try:
                         int(contig_id)
                     except ValueError:
@@ -1703,12 +1558,8 @@ class pyramid:
         output = []
         if level > 0:
             str_level = str(level)
-            sub_low = self.spec_level[str_level]["fragments_dict"][frag][
-                "sub_low_index"
-            ]
-            sub_high = self.spec_level[str_level]["fragments_dict"][frag][
-                "sub_high_index"
-            ]
+            sub_low = self.spec_level[str_level]["fragments_dict"][frag]["sub_low_index"]
+            sub_high = self.spec_level[str_level]["fragments_dict"][frag]["sub_high_index"]
             new_level = level - 1
             for i in range(sub_low, sub_high + 1):
                 output.append((i, new_level))
@@ -1725,9 +1576,7 @@ class pyramid:
         output = []
         if level > 0:
             str_level = str(level)
-            high_frag = self.spec_level[str_level]["fragments_dict"][frag][
-                "super_index"
-            ]
+            high_frag = self.spec_level[str_level]["fragments_dict"][frag]["super_index"]
             new_level = level + 1
             output = (high_frag, new_level)
         else:
@@ -1743,12 +1592,8 @@ class pyramid:
         output = []
         if level > 0:
             str_level = str(level)
-            sub_low = self.spec_level[str_level]["fragments_dict"][frag][
-                "sub_low_index"
-            ]
-            sub_high = self.spec_level[str_level]["fragments_dict"][frag][
-                "sub_high_index"
-            ]
+            sub_low = self.spec_level[str_level]["fragments_dict"][frag]["sub_low_index"]
+            sub_high = self.spec_level[str_level]["fragments_dict"][frag]["sub_high_index"]
             new_level = level - 1
             for i in range(sub_low, sub_high + 1):
                 output.append((i, new_level))
@@ -1757,24 +1602,16 @@ class pyramid:
         return output
 
     def zoom_in_pixel(self, curr_pixel):
-        """ return the curr_frag at a higher resolution"""
+        """return the curr_frag at a higher resolution"""
         low_frag = curr_pixel[0]
         high_frag = curr_pixel[1]
         level = curr_pixel[2]
         if level > 0:
             str_level = str(level)
-            low_sub_low = self.spec_level[str_level]["fragments_dict"][
-                low_frag
-            ]["sub_low_index"]
-            low_sub_high = self.spec_level[str_level]["fragments_dict"][
-                low_frag
-            ]["sub_high_index"]
-            high_sub_low = self.spec_level[str_level]["fragments_dict"][
-                high_frag
-            ]["sub_low_index"]
-            high_sub_high = self.spec_level[str_level]["fragments_dict"][
-                high_frag
-            ]["sub_high_index"]
+            low_sub_low = self.spec_level[str_level]["fragments_dict"][low_frag]["sub_low_index"]
+            low_sub_high = self.spec_level[str_level]["fragments_dict"][low_frag]["sub_high_index"]
+            high_sub_low = self.spec_level[str_level]["fragments_dict"][high_frag]["sub_low_index"]
+            high_sub_high = self.spec_level[str_level]["fragments_dict"][high_frag]["sub_high_index"]
             vect = [low_sub_low, low_sub_high, high_sub_low, high_sub_high]
             new_pix_low = min(vect)
             new_pix_high = max(vect)
@@ -1785,18 +1622,14 @@ class pyramid:
         return new_pixel
 
     def zoom_out_pixel(self, curr_pixel):
-        """ return the curr_frag at a lower resolution"""
+        """return the curr_frag at a lower resolution"""
         low_frag = curr_pixel[0]
         high_frag = curr_pixel[1]
         level = curr_pixel[2]
         str_level = str(level)
         if level < self.n_level - 1:
-            low_super = self.spec_level[str_level]["fragments_dict"][low_frag][
-                "super_index"
-            ]
-            high_super = self.spec_level[str_level]["fragments_dict"][
-                high_frag
-            ]["sub_index"]
+            low_super = self.spec_level[str_level]["fragments_dict"][low_frag]["super_index"]
+            high_super = self.spec_level[str_level]["fragments_dict"][high_frag]["sub_index"]
 
             new_pix_low = min([low_super, high_super])
             new_pix_high = max([low_super, high_super])
@@ -1807,7 +1640,7 @@ class pyramid:
         return new_pixel
 
     def zoom_in_area(self, area):
-        """ zoom in area"""
+        """zoom in area"""
         x = area[0]
         y = area[1]
         level = x[2]
@@ -1848,13 +1681,9 @@ class pyramid:
             if all_lines[i][0] == ">":
                 # print id_chrom
                 chrom_list.append(id_chrom)
-                self.dict_sequence_contigs[id_chrom] = "".join(
-                    all_lines[start:i]
-                )
+                self.dict_sequence_contigs[id_chrom] = "".join(all_lines[start:i])
                 start = i + 1
-                id_chrom = (
-                    all_lines[i][1:-1].replace("\n", "").replace("\r", "")
-                )
+                id_chrom = all_lines[i][1:-1].replace("\n", "").replace("\r", "")
                 self.dict_sequence_contigs[id_chrom] = ""
 
         chrom_list.append(id_chrom)
@@ -1863,12 +1692,8 @@ class pyramid:
         chrom_list = list(self.dict_sequence_contigs.keys())
         # chrom_list.sort()
         for chrom in chrom_list:
-            self.dict_sequence_contigs[chrom] = self.dict_sequence_contigs[
-                chrom
-            ].replace("\n", "")
-            self.dict_sequence_contigs[chrom] = self.dict_sequence_contigs[
-                chrom
-            ].replace("\r", "")
+            self.dict_sequence_contigs[chrom] = self.dict_sequence_contigs[chrom].replace("\n", "")
+            self.dict_sequence_contigs[chrom] = self.dict_sequence_contigs[chrom].replace("\r", "")
 
         f.close()
         # print chrom_list
@@ -1949,28 +1774,20 @@ class level:
         # end loading sparse matrix #####
 
         int_n_frags = np.int32(self.n_frags)
-        self.pos_vect_frags_4_GL = np.ndarray(
-            (int_n_frags, 4), dtype=np.float32
-        )
-        self.col_vect_frags_4_GL = np.ndarray(
-            (int_n_frags, 4), dtype=np.float32
-        )
+        self.pos_vect_frags_4_GL = np.ndarray((int_n_frags, 4), dtype=np.float32)
+        self.col_vect_frags_4_GL = np.ndarray((int_n_frags, 4), dtype=np.float32)
 
         self.dict_contigs = dict()
         ContFrags = pyramid.spec_level[str(self.level)]["contigs_dict"]
         if str(self.level - 1) in pyramid.spec_level:
-            subContFrags = pyramid.spec_level[str(self.level - 1)][
-                "contigs_dict"
-            ]
+            subContFrags = pyramid.spec_level[str(self.level - 1)]["contigs_dict"]
         else:
             subContFrags = ContFrags
         coord_cont = dict()
 
         n_contigs = len(list(ContFrags.keys()))
         # print "n init contigs = ", n_contigs
-        HSV_tuples = [
-            (x * 2.5 / n_contigs, 0.5, 0.5) for x in range(n_contigs)
-        ]
+        HSV_tuples = [(x * 2.5 / n_contigs, 0.5, 0.5) for x in range(n_contigs)]
         RGB_tuples = [colorsys.hsv_to_rgb(*x) for x in HSV_tuples]
         self.distri_frag = []
 
@@ -2033,12 +1850,8 @@ class level:
                     np.int32(len_curr_contig_bp),
                     np.int32(n_accu_frags),
                 )
-                self.pos_vect_frags_4_GL[id_f_curr, 0] = (
-                    np.float32(f.curr_id - 1) / 100.0
-                )
-                self.pos_vect_frags_4_GL[id_f_curr, 1] = (
-                    np.float32(f.contig_id) / 100.0
-                )
+                self.pos_vect_frags_4_GL[id_f_curr, 0] = np.float32(f.curr_id - 1) / 100.0
+                self.pos_vect_frags_4_GL[id_f_curr, 1] = np.float32(f.contig_id) / 100.0
                 # self.pos_vect_frags_4_GL[id_f_curr, 2] = np.float32(0.0)
                 self.pos_vect_frags_4_GL[id_f_curr, 2] = 0.0
                 self.pos_vect_frags_4_GL[id_f_curr, 3] = np.float32(1.0)
@@ -2050,15 +1863,9 @@ class level:
                 # self.col_vect_frags_4_GL[id_f_curr,1] = np.float32(1.)
                 # self.col_vect_frags_4_GL[id_f_curr,2] = np.float32(0.)
                 # self.col_vect_frags_4_GL[id_f_curr,3] = np.float32(1.)
-                self.col_vect_frags_4_GL[id_f_curr, 0] = np.float32(
-                    RGB_tuples[id_cont - 1][0]
-                )
-                self.col_vect_frags_4_GL[id_f_curr, 1] = np.float32(
-                    RGB_tuples[id_cont - 1][1]
-                )
-                self.col_vect_frags_4_GL[id_f_curr, 2] = np.float32(
-                    RGB_tuples[id_cont - 1][2]
-                )
+                self.col_vect_frags_4_GL[id_f_curr, 0] = np.float32(RGB_tuples[id_cont - 1][0])
+                self.col_vect_frags_4_GL[id_f_curr, 1] = np.float32(RGB_tuples[id_cont - 1][1])
+                self.col_vect_frags_4_GL[id_f_curr, 2] = np.float32(RGB_tuples[id_cont - 1][2])
                 self.col_vect_frags_4_GL[id_f_curr, 3] = np.float32(1.0)
 
                 # GL_col_frag = (np.float32(RGB_tuples[id_cont - 1][0],
@@ -2102,9 +1909,7 @@ class level:
         # np.array(self.col_vect_frags_4_GL, dtype=self.float4)
 
         for key in list(self.S_o_A_frags.keys()):
-            self.S_o_A_frags[key] = np.array(
-                self.S_o_A_frags[key], dtype=np.int32
-            )
+            self.S_o_A_frags[key] = np.array(self.S_o_A_frags[key], dtype=np.int32)
 
         total_trans = 0
         n_tot = 0
@@ -2134,18 +1939,11 @@ class level:
         #    total_trans -= intra.sum()
         #    n_tot += (full.shape[0]*full.shape[1]) -
         #    intra.shape[0]*intra.shape[1]
-        n_tot = (
-            self.sparse_mat_csr.shape[0]
-            * (self.sparse_mat_csr.shape[0] - 1)
-            / 2
-            - n_tot_intra
-        )
+        n_tot = self.sparse_mat_csr.shape[0] * (self.sparse_mat_csr.shape[0] - 1) / 2 - n_tot_intra
         self.mean_value_trans = total_trans / np.float32(n_tot)
         if np.isnan(self.mean_value_trans):
             self.mean_value_trans = np.amin(self.sparse_mat_csr.data) / 10.0
-        logger.debug(
-            "computed mean trans value ... = {}".format(self.mean_value_trans)
-        )
+        logger.debug("computed mean trans value ... = {}".format(self.mean_value_trans))
 
         self.distri_frag = np.array(self.distri_frag)
 
@@ -2154,7 +1952,9 @@ class level:
 
         self.n_contigs = len(self.dict_contigs)
 
-    def init_data(self,):
+    def init_data(
+        self,
+    ):
         logger.info("init data {}".format(self.level))
         if np.__version__ == "1.7.1" or np.__version__ == "1.8.0.dev-1a9aa5a":
             tmp = np.empty_like(self.im_init)
@@ -2165,8 +1965,7 @@ class level:
         self.im_curr = tmp
 
     def define_inter_chrom_coord(self):
-        """
-        """
+        """ """
         self.inter_coord = dict()
         self.all_data = dict()
         logger.info("define inter chrom coord ...")
@@ -2175,18 +1974,12 @@ class level:
                 self.inter_coord[id_cont_X] = dict()
                 self.all_data[id_cont_X] = dict()
                 coord_intra_X = self.dict_contigs[id_cont_X]["intra_coord"]
-                self.inter_coord[id_cont_X]["all"] = np.ix_(
-                    coord_intra_X, np.arange(0, self.n_frags)
-                )
+                self.inter_coord[id_cont_X]["all"] = np.ix_(coord_intra_X, np.arange(0, self.n_frags))
                 for id_cont_Y in self.dict_contigs:
                     if not (id_cont_Y == 17):
                         self.all_data[id_cont_X][id_cont_Y] = dict()
-                        coord_intra_Y = self.dict_contigs[id_cont_Y][
-                            "intra_coord"
-                        ]
-                        self.inter_coord[id_cont_X][id_cont_Y] = np.ix_(
-                            coord_intra_X, coord_intra_Y
-                        )
+                        coord_intra_Y = self.dict_contigs[id_cont_Y]["intra_coord"]
+                        self.inter_coord[id_cont_X][id_cont_Y] = np.ix_(coord_intra_X, coord_intra_Y)
         logger.info("done!")
 
     def build_seq_per_bin(self, genome_fasta):
@@ -2195,9 +1988,7 @@ class level:
         list_contigs = list(ContFrags.keys())
         list_contigs.sort()
 
-        list_contigs_tmp = list(
-            self.pyramid.spec_level[str(self.level)]["contigs_dict"].keys()
-        )
+        list_contigs_tmp = list(self.pyramid.spec_level[str(self.level)]["contigs_dict"].keys())
         # print "list contigs = ", list_contigs
         list_contigs = []
         for ele in list_contigs_tmp:
@@ -2212,9 +2003,7 @@ class level:
                 end = frag.end_pos
                 # print "init contig = ", frag.init_contig
                 init_contig = frag.init_contig
-                seq_frag = self.pyramid.dict_sequence_contigs[init_contig][
-                    start:end
-                ]
+                seq_frag = self.pyramid.dict_sequence_contigs[init_contig][start:end]
                 # print "len seq per frag = ", len(seq_frag)
                 self.list_seq.append(seq_frag)
 
@@ -2239,8 +2028,7 @@ class level:
                 header = ">3C-assembly|contig_" + str(id_cont)
                 handle_info_frags.write("%s\n" % (header))
                 handle_info_frags.write(
-                    "%s\t%s\t%s\t%s\t%s\n"
-                    % ("init_contig", "id_frag", "orientation", "start", "end")
+                    "%s\t%s\t%s\t%s\t%s\n" % ("init_contig", "id_frag", "orientation", "start", "end")
                 )
 
                 new_positions = pos_frag[list_frags]
@@ -2250,20 +2038,14 @@ class level:
                     ori = ori_frag[f]
                     init_frag_id = vect_frags.id_d[f]
                     init_contig = self.frags_init_contigs[init_frag_id]
-                    start_bp = self.pyramid.spec_level[str(self.level)][
-                        "fragments_dict"
-                    ][init_frag_id + 1]["start_pos(bp)"]
-                    end_bp = self.pyramid.spec_level[str(self.level)][
-                        "fragments_dict"
-                    ][init_frag_id + 1]["end_pos(bp)"]
-                    extract_seq = self.pyramid.dict_sequence_contigs[
-                        init_contig
-                    ][start_bp:end_bp]
+                    start_bp = self.pyramid.spec_level[str(self.level)]["fragments_dict"][init_frag_id + 1][
+                        "start_pos(bp)"
+                    ]
+                    end_bp = self.pyramid.spec_level[str(self.level)]["fragments_dict"][init_frag_id + 1]["end_pos(bp)"]
+                    extract_seq = self.pyramid.dict_sequence_contigs[init_contig][start_bp:end_bp]
                     if ori == -1:
                         seq = extract_seq[::-1]
-                        seq = seq.translate(
-                            str.maketrans("TAGCtagc", "ATCGATCG")
-                        )
+                        seq = seq.translate(str.maketrans("TAGCtagc", "ATCGATCG"))
                     else:
                         seq = extract_seq
 
@@ -2282,9 +2064,7 @@ class level:
         def contig_length(c):
             return len(list_seq_new_contigs[c])
 
-        for id_cont in sorted(
-            list_contigs_ok, key=contig_length, reverse=True
-        ):
+        for id_cont in sorted(list_contigs_ok, key=contig_length, reverse=True):
             cont_seq = list_seq_new_contigs[id_cont]
             header = ">3C-assembly-contig_" + str(id_cont)
             # print header

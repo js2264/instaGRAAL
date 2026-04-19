@@ -74,21 +74,16 @@ class sampler:
         # col_vbo,
         vel,
         pos,
-
     ):
         self.o = 0
 
         self.log_e = 0.43429448190325182
         self.sparse_matrix = sparse_matrix + sparse_matrix.transpose()
-        self.n_single_frags = np.int32(
-            init_n_sub_frags - len(sub_candidates_dup)
-        )
+        self.n_single_frags = np.int32(init_n_sub_frags - len(sub_candidates_dup))
         self.sub_sampled_sparse_matrix = sub_sampled_sparse_matrix
 
         self.np_sub_frags_2_frags = np_sub_frags_2_frags
-        self.gpu_sub_frags_2_frags = cuda.mem_alloc(
-            self.np_sub_frags_2_frags.nbytes
-        )
+        self.gpu_sub_frags_2_frags = cuda.mem_alloc(self.np_sub_frags_2_frags.nbytes)
         cuda.memcpy_htod(self.gpu_sub_frags_2_frags, self.np_sub_frags_2_frags)
 
         # repeatead candidates info
@@ -120,9 +115,7 @@ class sampler:
             [("x", np.float32), ("y", np.float32), ("z", np.float32)],
             align=True,
         )
-        self.int3 = np.dtype(
-            [("x", np.int32), ("y", np.int32), ("z", np.int32)], align=True
-        )
+        self.int3 = np.dtype([("x", np.int32), ("y", np.int32), ("z", np.int32)], align=True)
 
         self.np_id_frag_duplicated = np.int32(id_frag_duplicated)
         self.id_frag_duplicated = id_frag_duplicated
@@ -140,23 +133,13 @@ class sampler:
         self.n_frags_uniq = np.int32(len(self.uniq_frags))
 
         self.n_values_triu = np.int32(self.n_frags * (self.n_frags - 1) / 2)
-        self.init_n_values_triu = np.int32(
-            self.n_frags * (self.n_frags - 1) / 2
-        )
-        self.new_n_values_triu = np.int32(
-            self.n_new_frags * (self.n_new_frags - 1) / 2
-        )
-        self.init_n_sub_values_triu = np.int32(
-            self.init_n_sub_frags * (self.init_n_sub_frags - 1) / 2
-        )
-        self.new_n_sub_values_triu = np.int32(
-            self.n_new_sub_frags * (self.n_new_sub_frags - 1) / 2
-        )
+        self.init_n_values_triu = np.int32(self.n_frags * (self.n_frags - 1) / 2)
+        self.new_n_values_triu = np.int32(self.n_new_frags * (self.n_new_frags - 1) / 2)
+        self.init_n_sub_values_triu = np.int32(self.init_n_sub_frags * (self.init_n_sub_frags - 1) / 2)
+        self.new_n_sub_values_triu = np.int32(self.n_new_sub_frags * (self.n_new_sub_frags - 1) / 2)
 
         self.init_n_values_triu_extra = self.init_n_values_triu + self.n_frags
-        self.init_n_sub_values_triu_extra = (
-            self.init_n_sub_values_triu + self.init_n_sub_frags
-        )
+        self.init_n_sub_values_triu_extra = self.init_n_sub_values_triu + self.init_n_sub_frags
 
         self.n_insert_blocks = 6
         # self.n_insert_blocks = 0
@@ -174,45 +157,29 @@ class sampler:
         self.np_sub_frags_id = np_sub_frags_id
         self.np_sub_frags_accu = np_sub_frags_accu
         # self.hic_matrix_sub_sampled = hic_matrix_sub_sampled
-        self.mean_squared_frags_per_bin = np.float32(
-            mean_squared_frags_per_bin
-        )
+        self.mean_squared_frags_per_bin = np.float32(mean_squared_frags_per_bin)
         # print "size hic matrix = ", hic_matrix.nbytes/10**6
 
         self.collector_id_repeats = collector_id_repeats
-        self.gpu_collector_id_repeats = ga.to_gpu(
-            ary=self.collector_id_repeats
-        )
+        self.gpu_collector_id_repeats = ga.to_gpu(ary=self.collector_id_repeats)
         self.frag_dispatcher = frag_dispatcher
         self.gpu_frag_dispatcher = cuda.mem_alloc(self.frag_dispatcher.nbytes)
         cuda.memcpy_htod(self.gpu_frag_dispatcher, self.frag_dispatcher)
         self.np_rep_sub_frags_id = np_rep_sub_frags_id
-        self.gpu_rep_sub_frags_id = cuda.mem_alloc_like(
-            self.np_rep_sub_frags_id
-        )
+        self.gpu_rep_sub_frags_id = cuda.mem_alloc_like(self.np_rep_sub_frags_id)
         cuda.memcpy_htod(self.gpu_rep_sub_frags_id, self.np_rep_sub_frags_id)
         self.gpu_uniq_frags = ga.to_gpu(ary=self.uniq_frags)
 
         self.sub_collector_id_repeats = sub_collector_id_repeats
         self.sub_frag_dispatcher = sub_frag_dispatcher
-        self.gpu_sub_frag_dispatcher = cuda.mem_alloc_like(
-            self.sub_frag_dispatcher
-        )
-        cuda.memcpy_htod(
-            self.gpu_sub_frag_dispatcher, self.sub_frag_dispatcher
-        )
-        self.gpu_sub_collector_id_repeats = cuda.mem_alloc_like(
-            self.sub_collector_id_repeats
-        )
-        cuda.memcpy_htod(
-            self.gpu_sub_collector_id_repeats, self.sub_collector_id_repeats
-        )
+        self.gpu_sub_frag_dispatcher = cuda.mem_alloc_like(self.sub_frag_dispatcher)
+        cuda.memcpy_htod(self.gpu_sub_frag_dispatcher, self.sub_frag_dispatcher)
+        self.gpu_sub_collector_id_repeats = cuda.mem_alloc_like(self.sub_collector_id_repeats)
+        cuda.memcpy_htod(self.gpu_sub_collector_id_repeats, self.sub_collector_id_repeats)
 
         self.S_o_A_frags = S_o_A_frags
         self.S_o_A_sub_frags = S_o_A_sub_frags
-        self.mean_n_accu = np.int32(
-            np.round(self.S_o_A_frags["n_accu"].mean())
-        )
+        self.mean_n_accu = np.int32(np.round(self.S_o_A_frags["n_accu"].mean()))
         self.mean_len_bp_frags = self.S_o_A_sub_frags["len_bp"].mean()
 
         self.mean_value_trans = mean_value_trans
@@ -257,38 +224,22 @@ class sampler:
         for idf in range(0, self.n_new_frags):
             id_d = self.S_o_A_frags["id_d"][idf]
             self.np_init_orientable.append(self.np_sub_frags_id[id_d]["w"] > 1)
-        self.np_init_orientable = np.array(
-            self.np_init_orientable, dtype=np.int32
-        )
+        self.np_init_orientable = np.array(self.np_init_orientable, dtype=np.int32)
         self.np_init_ori = np.ones((self.n_new_frags,), dtype=np.int32)
         # ########################
         self.n_generators = 100
         seed = 1
         self.rng_states = cuda.mem_alloc(
-            self.n_generators
-            * characterize.sizeof(
-                "curandStateXORWOW", "#include <curand_kernel.h>"
-            )
+            self.n_generators * characterize.sizeof("curandStateXORWOW", "#include <curand_kernel.h>")
         )
 
         (free, total) = cuda.mem_get_info()
-        logger.debug(
-            (
-                "Global memory occupancy after init:%f%% free"
-                % (free * 100. / total)
-            )
-        )
-        logger.debug(
-            ("Global free memory after init:%i Mo free" % (free / 10 ** 6.))
-        )
+        logger.debug(("Global memory occupancy after init:%f%% free" % (free * 100.0 / total)))
+        logger.debug(("Global free memory after init:%i Mo free" % (free / 10**6.0)))
 
         logger.info("loading kernels ...")
-        kernel_adapt_entry_point = str(
-            _pkg_files("instagraal").joinpath("kernels/kernel_sparse_adapt.cu")
-        )
-        kernel_entry_point = str(
-            _pkg_files("instagraal").joinpath("kernels/kernel_sparse.cu")
-        )
+        kernel_adapt_entry_point = str(_pkg_files("instagraal").joinpath("kernels/kernel_sparse_adapt.cu"))
+        kernel_entry_point = str(_pkg_files("instagraal").joinpath("kernels/kernel_sparse.cu"))
         if self.active_insert_blocks:
             self.loadProgram(kernel_adapt_entry_point)
         else:
@@ -319,11 +270,11 @@ class sampler:
 
         self.im_thresh = 50
 
-    def setup_all_gpu_struct(self,):
+    def setup_all_gpu_struct(
+        self,
+    ):
 
-        self.n_threads_mutations = int(
-            np.power(2, np.floor(np.log2(self.n_tmp_struct)) + 1)
-        )
+        self.n_threads_mutations = int(np.power(2, np.floor(np.log2(self.n_tmp_struct)) + 1))
         self.gpu_vect_frags = self.create_gpu_struct(data=self.S_o_A_frags)
 
         self.cpu_id_contigs = np.copy(self.S_o_A_frags["id_c"])
@@ -331,29 +282,17 @@ class sampler:
         self.collector_gpu_vect_frags = []
 
         for k in range(0, self.n_tmp_struct):
-            self.collector_gpu_vect_frags.append(
-                self.create_gpu_struct(data=None)
-            )
+            self.collector_gpu_vect_frags.append(self.create_gpu_struct(data=None))
 
-        sub_vect_dist = np.ones(
-            (self.n_new_sub_frags * self.n_tmp_struct,), dtype=np.float32
-        )
+        sub_vect_dist = np.ones((self.n_new_sub_frags * self.n_tmp_struct,), dtype=np.float32)
         self.collect_gpu_vect_dist = ga.to_gpu(sub_vect_dist)
-        sub_vect_id_c = np.ones(
-            (self.n_new_sub_frags * self.n_tmp_struct,), dtype=np.int32
-        )
+        sub_vect_id_c = np.ones((self.n_new_sub_frags * self.n_tmp_struct,), dtype=np.int32)
         self.collect_gpu_vect_id_c = ga.to_gpu(sub_vect_id_c)
-        sub_vect_s_tot = np.ones(
-            (self.n_new_sub_frags * self.n_tmp_struct,), dtype=np.float32
-        )
+        sub_vect_s_tot = np.ones((self.n_new_sub_frags * self.n_tmp_struct,), dtype=np.float32)
         self.collect_gpu_vect_s_tot = ga.to_gpu(sub_vect_s_tot)
-        sub_vect_pos = np.ones(
-            (self.n_new_sub_frags * self.n_tmp_struct,), dtype=np.int32
-        )
+        sub_vect_pos = np.ones((self.n_new_sub_frags * self.n_tmp_struct,), dtype=np.int32)
         self.collect_gpu_vect_pos = ga.to_gpu(sub_vect_pos)
-        sub_vect_len = np.ones(
-            (self.n_new_sub_frags * self.n_tmp_struct,), dtype=np.int32
-        )
+        sub_vect_len = np.ones((self.n_new_sub_frags * self.n_tmp_struct,), dtype=np.int32)
         self.collect_gpu_vect_len = ga.to_gpu(sub_vect_len)
 
         self.pop_gpu_vect_frags = self.create_gpu_struct(data=None)
@@ -372,15 +311,11 @@ class sampler:
         self.gpu_list_len_cont = ga.zeros(self.n_frags, dtype=np.int32)
         self.gpu_likelihood_on_zeros = ga.zeros(1, dtype=np.float64)
         self.gpu_likelihood_on_zeros_nuis = ga.zeros(1, dtype=np.float64)
-        self.gpu_vect_likelihood_z = ga.zeros(
-            self.n_tmp_struct, dtype=np.float64
-        )
+        self.gpu_vect_likelihood_z = ga.zeros(self.n_tmp_struct, dtype=np.float64)
         self.gpu_n_vals_intra = ga.zeros(1, dtype=np.int32)
         self.gpu_all_n_vals_intra = ga.zeros(self.n_tmp_struct, dtype=np.int32)
         self.gpu_n_tot_sub_frags = ga.zeros(1, dtype=np.int32)
-        self.n_pixl_sub_mat = (
-            self.init_n_sub_frags * (self.init_n_sub_frags - 1) / 2
-        )
+        self.n_pixl_sub_mat = self.init_n_sub_frags * (self.init_n_sub_frags - 1) / 2
 
         sub_vect_dist = np.ones((self.n_new_sub_frags,), dtype=np.float32)
         self.gpu_vect_dist = ga.to_gpu(sub_vect_dist)
@@ -393,32 +328,18 @@ class sampler:
         sub_vect_len = np.ones((self.n_new_sub_frags,), dtype=np.int32)
         self.gpu_vect_len = ga.to_gpu(sub_vect_len)
 
-        self.gpu_vect_dist_mut = ga.zeros(
-            (self.n_new_sub_frags,), dtype=np.float32
-        )
-        self.gpu_vect_id_c_mut = ga.zeros(
-            (self.n_new_sub_frags,), dtype=np.int32
-        )
-        self.gpu_vect_s_tot_mut = ga.zeros(
-            (self.n_new_sub_frags,), dtype=np.float32
-        )
-        self.gpu_vect_pos_mut = ga.zeros(
-            (self.n_new_sub_frags,), dtype=np.int32
-        )
-        self.gpu_vect_len_mut = ga.zeros(
-            (self.n_new_sub_frags,), dtype=np.int32
-        )
+        self.gpu_vect_dist_mut = ga.zeros((self.n_new_sub_frags,), dtype=np.float32)
+        self.gpu_vect_id_c_mut = ga.zeros((self.n_new_sub_frags,), dtype=np.int32)
+        self.gpu_vect_s_tot_mut = ga.zeros((self.n_new_sub_frags,), dtype=np.float32)
+        self.gpu_vect_pos_mut = ga.zeros((self.n_new_sub_frags,), dtype=np.int32)
+        self.gpu_vect_len_mut = ga.zeros((self.n_new_sub_frags,), dtype=np.int32)
 
-        self.gpu_list_uniq_mutations = ga.zeros(
-            (self.n_tmp_struct,), dtype=np.int32
-        )
+        self.gpu_list_uniq_mutations = ga.zeros((self.n_tmp_struct,), dtype=np.int32)
         self.gpu_n_uniq = ga.zeros((1,), dtype=np.int32)
         self.gpu_n_pixl_sub_mat = ga.zeros((1,), dtype=np.float64)
         self.gpu_n_pixl_sub_mat.fill(np.float64(self.n_pixl_sub_mat))
 
-        self.gpu_sub_sp_block_indptr = ga.to_gpu(
-            np.zeros((self.n_non_zero,), dtype=np.int32)
-        )
+        self.gpu_sub_sp_block_indptr = ga.to_gpu(np.zeros((self.n_non_zero,), dtype=np.int32))
         self.gpu_info_blocks = ga.to_gpu(
             np.zeros(
                 (int(self.n_non_zero / self.size_block_4_sub + 1),),
@@ -426,24 +347,14 @@ class sampler:
             )
         )
 
-        self.gpu_sub_vect_likelihood_nz = ga.to_gpu(
-            np.zeros((self.n_tmp_struct,), dtype=np.float64)
-        )
+        self.gpu_sub_vect_likelihood_nz = ga.to_gpu(np.zeros((self.n_tmp_struct,), dtype=np.float64))
         self.gpu_curr_likelihood_nz_extract = ga.zeros(1, dtype=np.float64)
 
-        self.gpu_all_scores = ga.to_gpu(
-            np.zeros((self.n_tmp_struct,), dtype=np.float64)
-        )
+        self.gpu_all_scores = ga.to_gpu(np.zeros((self.n_tmp_struct,), dtype=np.float64))
 
-        self.gpu_curr_likelihood_nz = ga.to_gpu(
-            np.zeros((1,), dtype=np.float64)
-        )
-        self.gpu_curr_likelihood_nz_nuis = ga.to_gpu(
-            np.zeros((1,), dtype=np.float64)
-        )
-        self.gpu_val_likelihood_4_mut = ga.to_gpu(
-            np.zeros((1,), dtype=np.float64)
-        )
+        self.gpu_curr_likelihood_nz = ga.to_gpu(np.zeros((1,), dtype=np.float64))
+        self.gpu_curr_likelihood_nz_nuis = ga.to_gpu(np.zeros((1,), dtype=np.float64))
+        self.gpu_val_likelihood_4_mut = ga.to_gpu(np.zeros((1,), dtype=np.float64))
 
         self.gpu_uniq_id_c = ga.zeros((self.n_new_sub_frags,), dtype=np.int32)
         self.gpu_uniq_len = ga.zeros((self.n_new_sub_frags,), dtype=np.int32)
@@ -455,26 +366,14 @@ class sampler:
         if self.active_insert_blocks:
             # self.gpu_list_bounds = ga.to_gpu(ary=np.array(range(1,
             # self.n_insert_blocks + 1), dtype=np.int32))
-            list_size = np.array(
-                [1, 3, 5, 10, 20, 50, 200, 200], dtype=np.int32
-            )
-            self.max_bounds_insert = list_size[
-                : self.n_insert_blocks
-            ].max() * np.int32(
+            list_size = np.array([1, 3, 5, 10, 20, 50, 200, 200], dtype=np.int32)
+            self.max_bounds_insert = list_size[: self.n_insert_blocks].max() * np.int32(
                 np.round(self.S_o_A_frags["sub_len"].mean()) + 1
             )  # approximation of sub size to extract in full matrix
-            self.gpu_list_valid_insert = ga.zeros(
-                (self.n_insert_blocks * 2), dtype=np.int32
-            )
-            self.gpu_list_bounds = ga.to_gpu(
-                ary=np.array(list_size[: self.n_insert_blocks], dtype=np.int32)
-            )
-            self.gpu_list_f_upstream = ga.zeros(
-                (self.n_insert_blocks,), dtype=np.int32
-            )
-            self.gpu_list_f_downstream = ga.zeros(
-                (self.n_insert_blocks,), dtype=np.int32
-            )
+            self.gpu_list_valid_insert = ga.zeros((self.n_insert_blocks * 2), dtype=np.int32)
+            self.gpu_list_bounds = ga.to_gpu(ary=np.array(list_size[: self.n_insert_blocks], dtype=np.int32))
+            self.gpu_list_f_upstream = ga.zeros((self.n_insert_blocks,), dtype=np.int32)
+            self.gpu_list_f_downstream = ga.zeros((self.n_insert_blocks,), dtype=np.int32)
 
     def setup_thrust_modules(self):
 
@@ -505,18 +404,9 @@ class sampler:
             ),
             cgen.Block(
                 [
-                    cgen.Statement(
-                        "thrust::device_ptr<int> "
-                        "thrust_ptr((int*)input_ptr_keys)"
-                    ),
-                    cgen.Statement(
-                        "thrust::device_ptr<int> "
-                        "thrust_ptr_valsa((int*)input_ptr_valsa)"
-                    ),
-                    cgen.Statement(
-                        "thrust::device_ptr<int> "
-                        "thrust_ptr_valsb((int*)input_ptr_valsb)"
-                    ),
+                    cgen.Statement("thrust::device_ptr<int> " "thrust_ptr((int*)input_ptr_keys)"),
+                    cgen.Statement("thrust::device_ptr<int> " "thrust_ptr_valsa((int*)input_ptr_valsa)"),
+                    cgen.Statement("thrust::device_ptr<int> " "thrust_ptr_valsb((int*)input_ptr_valsb)"),
                     cgen.Statement(
                         "thrust::tuple< thrust::device_ptr<int>, "
                         "thrust::device_ptr<int> > keytup_begin = "
@@ -527,10 +417,7 @@ class sampler:
                         "<thrust::device_ptr<int>, thrust::device_ptr<int> > >"
                         " first = thrust::make_zip_iterator(keytup_begin)"
                     ),
-                    cgen.Statement(
-                        "thrust::stable_sort_by_key(thrust_ptr, "
-                        "thrust_ptr+length, first)"
-                    ),
+                    cgen.Statement("thrust::stable_sort_by_key(thrust_ptr, " "thrust_ptr+length, first)"),
                 ]
             ),
         )
@@ -552,18 +439,9 @@ class sampler:
             ),
             cgen.Block(
                 [
-                    cgen.Statement(
-                        "thrust::device_ptr<int> "
-                        "thrust_ptr_v((int*)input_ptr_vals)"
-                    ),
-                    cgen.Statement(
-                        "thrust::device_ptr<int> "
-                        "thrust_ptr_keysa((int*)input_ptr_keys_a)"
-                    ),
-                    cgen.Statement(
-                        "thrust::device_ptr<int> "
-                        "thrust_ptr_keysb((int*)input_ptr_keys_b)"
-                    ),
+                    cgen.Statement("thrust::device_ptr<int> " "thrust_ptr_v((int*)input_ptr_vals)"),
+                    cgen.Statement("thrust::device_ptr<int> " "thrust_ptr_keysa((int*)input_ptr_keys_a)"),
+                    cgen.Statement("thrust::device_ptr<int> " "thrust_ptr_keysb((int*)input_ptr_keys_b)"),
                     cgen.Statement(
                         "thrust::tuple< thrust::device_ptr<int>, "
                         "thrust::device_ptr<int> > keytup_begin = "
@@ -574,10 +452,7 @@ class sampler:
                         "<int>, thrust::device_ptr<int> > > first = "
                         "thrust::make_zip_iterator(keytup_begin)"
                     ),
-                    cgen.Statement(
-                        "thrust::stable_sort_by_key(first, first+length, "
-                        "thrust_ptr_v)"
-                    ),
+                    cgen.Statement("thrust::stable_sort_by_key(first, first+length, " "thrust_ptr_v)"),
                 ]
             ),
         )
@@ -598,14 +473,8 @@ class sampler:
             ),
             cgen.Block(
                 [
-                    cgen.Statement(
-                        "thrust::device_ptr<int> "
-                        "thrust_ptr((int*)input_ptr_keys)"
-                    ),
-                    cgen.Statement(
-                        "thrust::device_ptr<int> "
-                        "thrust_ptr_v((int*)input_ptr_vals)"
-                    ),
+                    cgen.Statement("thrust::device_ptr<int> " "thrust_ptr((int*)input_ptr_keys)"),
+                    cgen.Statement("thrust::device_ptr<int> " "thrust_ptr_v((int*)input_ptr_vals)"),
                     cgen.Statement(
                         "thrust::stable_sort_by_key(thrust_ptr, "
                         "thrust_ptr+length, thrust_ptr_v, "
@@ -629,14 +498,8 @@ class sampler:
             ),
             cgen.Block(
                 [
-                    cgen.Statement(
-                        "thrust::device_ptr<int> "
-                        "thrust_ptr_v((int*)input_ptr_vals)"
-                    ),
-                    cgen.Statement(
-                        "thrust::exclusive_scan(thrust_ptr_v, "
-                        "thrust_ptr_v+length,thrust_ptr_v)"
-                    ),
+                    cgen.Statement("thrust::device_ptr<int> " "thrust_ptr_v((int*)input_ptr_vals)"),
+                    cgen.Statement("thrust::exclusive_scan(thrust_ptr_v, " "thrust_ptr_v+length,thrust_ptr_v)"),
                 ]
             ),
         )
@@ -658,8 +521,8 @@ class sampler:
         # directly convertible to CUdeviceptr; cast through int first.
         def _gpudata_extract(varname, arr_name):
             return (
-                f'CUdeviceptr {varname} = '
-                f'(CUdeviceptr)PyLong_AsLongLong('
+                f"CUdeviceptr {varname} = "
+                f"(CUdeviceptr)PyLong_AsLongLong("
                 f'object({arr_name}.attr("gpudata")).ptr())'
             )
 
@@ -687,9 +550,7 @@ class sampler:
                         cgen.Value("object", "gpu_array_valsb"),
                     ],
                 ),
-                cgen.Block(
-                    [cgen.Statement(x) for x in host_statements_sort_zip]
-                ),
+                cgen.Block([cgen.Statement(x) for x in host_statements_sort_zip]),
             )
         )
 
@@ -717,12 +578,7 @@ class sampler:
                         cgen.Value("object", "gpu_array_vals"),
                     ],
                 ),
-                cgen.Block(
-                    [
-                        cgen.Statement(x)
-                        for x in host_statements_sort_zip_cmplex
-                    ]
-                ),
+                cgen.Block([cgen.Statement(x) for x in host_statements_sort_zip_cmplex]),
             )
         )
 
@@ -748,9 +604,7 @@ class sampler:
                         cgen.Value("object", "gpu_array_vals"),
                     ],
                 ),
-                cgen.Block(
-                    [cgen.Statement(x) for x in host_statements_sort_simple]
-                ),
+                cgen.Block([cgen.Statement(x) for x in host_statements_sort_simple]),
             )
         )
 
@@ -774,9 +628,7 @@ class sampler:
                         cgen.Value("int", "n_vals"),
                     ],
                 ),
-                cgen.Block(
-                    [cgen.Statement(x) for x in host_statements_prefix_sum]
-                ),
+                cgen.Block([cgen.Statement(x) for x in host_statements_prefix_sum]),
             )
         )
 
@@ -792,9 +644,7 @@ class sampler:
         gcc_toolchain = codepy.toolchain.guess_toolchain()
         nvcc_toolchain = codepy.toolchain.guess_nvcc_toolchain()
 
-        self.thrust_module = nvcc_mod.compile(
-            gcc_toolchain, nvcc_toolchain, debug=True
-        )
+        self.thrust_module = nvcc_mod.compile(gcc_toolchain, nvcc_toolchain, debug=True)
 
     def create_gpu_struct(self, data):
         if data is None:
@@ -918,13 +768,13 @@ class sampler:
         gpu_vect.copy_to_gpu()
         return gpu_vect
 
-    def sparse_data_2_gpu(self,):
+    def sparse_data_2_gpu(
+        self,
+    ):
 
         # extract matrix withtout repeats
         id_single = []
-        self.sym_sub_sampled_sparse_matrix = (
-            self.sub_sampled_sparse_matrix + self.sub_sampled_sparse_matrix.T
-        )
+        self.sym_sub_sampled_sparse_matrix = self.sub_sampled_sparse_matrix + self.sub_sampled_sparse_matrix.T
         for i in range(0, self.init_n_sub_frags):
             if i not in self.sub_candidates_dup:
                 id_single.append(i)
@@ -939,9 +789,7 @@ class sampler:
 
         self.hay_repeats = len(self.sub_candidates_dup) > 0
         if self.hay_repeats:
-            self.mat_with_repeats = self.sparse_matrix[
-                self.sub_candidates_dup, :
-            ]  # repeats Vs all
+            self.mat_with_repeats = self.sparse_matrix[self.sub_candidates_dup, :]  # repeats Vs all
         # HERE WE GO !!!!!
         total_mem_sparse = 0
         self.sub_sparse_sorted_data = []
@@ -963,54 +811,34 @@ class sampler:
 
         self.sparse_matrix_coo = self.sparse_matrix.tocoo()
         self.mat_without_repeats_coo_tmp = self.mat_without_repeats.tocoo()
-        self.mat_without_repeats_coo = scp.sparse.triu(
-            self.mat_without_repeats_coo_tmp, k=1, format="coo"
-        )
+        self.mat_without_repeats_coo = scp.sparse.triu(self.mat_without_repeats_coo_tmp, k=1, format="coo")
 
         if self.hay_repeats:
             self.mat_with_repeats_coo_tmp = self.mat_with_repeats.tocoo()
-            self.mat_with_repeats_coo = scp.sparse.triu(
-                self.mat_with_repeats_coo_tmp, k=1, format="coo"
-            )
+            self.mat_with_repeats_coo = scp.sparse.triu(self.mat_with_repeats_coo_tmp, k=1, format="coo")
         # self.gpu_sp_data = ga.to_gpu(ary=self.sparse_matrix.data)
         # self.gpu_sp_indptr = ga.to_gpu(ary=self.sparse_matrix.indptr)
         # self.gpu_sp_rows = ga.to_gpu(ary=self.sparse_matrix_coo.row)
         # self.gpu_sp_cols = ga.to_gpu(ary=self.sparse_matrix_coo.col)
 
         self.gpu_id_single = ga.to_gpu(ary=self.id_single)
-        self.gpu_sp_no_rep_data = ga.to_gpu(
-            ary=self.mat_without_repeats_coo.data
-        )
+        self.gpu_sp_no_rep_data = ga.to_gpu(ary=self.mat_without_repeats_coo.data)
         # self.gpu_sp_no_rep_indptr =
         # ga.to_gpu(ary=self.mat_without_repeats.indptr)
-        self.gpu_sp_no_rep_rows = ga.to_gpu(
-            ary=self.mat_without_repeats_coo.row
-        )
-        self.gpu_sp_no_rep_cols = ga.to_gpu(
-            ary=self.mat_without_repeats_coo.col
-        )
+        self.gpu_sp_no_rep_rows = ga.to_gpu(ary=self.mat_without_repeats_coo.row)
+        self.gpu_sp_no_rep_cols = ga.to_gpu(ary=self.mat_without_repeats_coo.col)
 
-        self.gpu_sub_sp_no_rep_data = ga.to_gpu(
-            ary=np.zeros_like(self.mat_without_repeats_coo.data)
-        )
-        self.gpu_sub_sp_no_rep_rows = ga.to_gpu(
-            ary=np.zeros_like(self.mat_without_repeats_coo.data)
-        )
-        self.gpu_sub_sp_no_rep_cols = ga.to_gpu(
-            ary=np.zeros_like(self.mat_without_repeats_coo.data)
-        )
+        self.gpu_sub_sp_no_rep_data = ga.to_gpu(ary=np.zeros_like(self.mat_without_repeats_coo.data))
+        self.gpu_sub_sp_no_rep_rows = ga.to_gpu(ary=np.zeros_like(self.mat_without_repeats_coo.data))
+        self.gpu_sub_sp_no_rep_cols = ga.to_gpu(ary=np.zeros_like(self.mat_without_repeats_coo.data))
 
         self.n_non_zero = self.mat_without_repeats_coo.data.shape[0]
-        self.gpu_collect_frags_4_sp = ga.to_gpu(
-            ary=np.zeros((self.id_single.shape[0] + 1,), dtype=np.int32)
-        )
+        self.gpu_collect_frags_4_sp = ga.to_gpu(ary=np.zeros((self.id_single.shape[0] + 1,), dtype=np.int32))
 
         if self.hay_repeats:
             self.gpu_id_ok_rep = ga.to_gpu(ary=self.id_rep)
             self.gpu_sp_rep_data = ga.to_gpu(ary=self.mat_with_repeats.data)
-            self.gpu_sp_rep_indptr = ga.to_gpu(
-                ary=self.mat_with_repeats.indptr
-            )
+            self.gpu_sp_rep_indptr = ga.to_gpu(ary=self.mat_with_repeats.indptr)
             self.gpu_sp_rep_rows = ga.to_gpu(ary=self.mat_with_repeats_coo.row)
             self.gpu_sp_rep_cols = ga.to_gpu(ary=self.mat_with_repeats_coo.col)
 
@@ -1035,34 +863,24 @@ class sampler:
         # total_mem_sparse += self.sub_sampled_sparse_matrix.data.nbytes +
         # self.sub_sampled_sparse_matrix.indptr.nbytes + \
         #                     self.sub_sampled_sparse_matrix.indices.nbytes
-        logger.info(
-            "total mem used by sparse data = {}".format(
-                np.float32(total_mem_sparse) / 10 ** 6.
-            )
-        )
+        logger.info("total mem used by sparse data = {}".format(np.float32(total_mem_sparse) / 10**6.0))
 
     def sparse_data_4_gl(self, precision):
         # create sparse data 4 opengl purposes. take only value above limit
         # self.sub_mat = self.sub_sampled_sparse_matrix.tocoo()
-        self.sub_mat = scp.sparse.triu(
-            self.sub_sampled_sparse_matrix, k=1, format="coo"
-        )
+        self.sub_mat = scp.sparse.triu(self.sub_sampled_sparse_matrix, k=1, format="coo")
         rows = self.sub_mat.row
         cols = self.sub_mat.col
         data = self.sub_mat.data
         id = np.nonzero(data > precision)[0]
         self.n_data_4_gl = len(id)
-        self.mat_4_gl = scp.sparse.coo_matrix(
-            (data[id], (rows[id], cols[id])), shape=self.sub_mat.shape
-        )
+        self.mat_4_gl = scp.sparse.coo_matrix((data[id], (rows[id], cols[id])), shape=self.sub_mat.shape)
         self.gpu_rows_4_gl = ga.to_gpu(ary=self.mat_4_gl.row)
         self.gpu_cols_4_gl = ga.to_gpu(ary=self.mat_4_gl.col)
         self.gpu_data_4_gl = ga.to_gpu(ary=self.mat_4_gl.data)
         self.gpu_ptr_4_gl = ga.zeros_like(self.gpu_data_4_gl)
         self.gpu_counter_select_4_gl = ga.zeros((1,), dtype=np.int32)
-        self.gpu_vect_gl_pxl_frag = ga.zeros(
-            (self.n_new_frags,), dtype=np.int32
-        )
+        self.gpu_vect_gl_pxl_frag = ga.zeros((self.n_new_frags,), dtype=np.int32)
 
     def dist_inter_genome(self, tmp_gpu_vect_frags):
         tmp_gpu_vect_frags.copy_from_gpu()
@@ -1080,9 +898,7 @@ class sampler:
                 ori_t0 = self.np_init_ori[id_f]
                 ori_t1 = g1.ori[id_f]
                 swap = 1
-                if ((prev_t1 == prev_t0) and (next_t1 == next_t0)) or (
-                    (prev_t1 == next_t0) and (next_t1 == prev_t0)
-                ):
+                if ((prev_t1 == prev_t0) and (next_t1 == next_t0)) or ((prev_t1 == next_t0) and (next_t1 == prev_t0)):
                     d -= 1
                     # if not(self.np_init_orientable[id_f]):
                     #     d -= 2
@@ -1121,7 +937,9 @@ class sampler:
                         d -= 1
         return d / norm_distance
 
-    def approx_single_likelihood_on_zeros(self,):
+    def approx_single_likelihood_on_zeros(
+        self,
+    ):
 
         start = cuda.Event()
         end = cuda.Event()
@@ -1144,7 +962,7 @@ class sampler:
             self.gpu_vect_pos,
             self.gpu_vect_len,
             self.gpu_param_simu,
-            np.int32(self.mean_len_bp_frags / 1000.),
+            np.int32(self.mean_len_bp_frags / 1000.0),
             self.gpu_likelihood_on_zeros,
             self.gpu_n_vals_intra,
             np.int32(self.init_n_sub_frags),
@@ -1156,23 +974,18 @@ class sampler:
 
         # print "CUDA clock execution timing (compute likelihood on zeros): ",
         # secs
-        self.val_on_zero_intra = (
-            self.gpu_likelihood_on_zeros.get()[0] * self.log_e
-        )
+        self.val_on_zero_intra = self.gpu_likelihood_on_zeros.get()[0] * self.log_e
         self.n_vals_intra = self.gpu_n_vals_intra.get()[0]
 
         self.val_on_zero_inter = (
-            self.log_e
-            * (self.n_pixl_sub_mat - self.n_vals_intra)
-            * -1.0
-            * self.param_simu["v_inter"][0]
+            self.log_e * (self.n_pixl_sub_mat - self.n_vals_intra) * -1.0 * self.param_simu["v_inter"][0]
         )
-        self.curr_likelihood_on_z = (
-            self.val_on_zero_intra + self.val_on_zero_inter
-        )
+        self.curr_likelihood_on_z = self.val_on_zero_intra + self.val_on_zero_inter
         # print "GPU execution time ( approx on zeros single) = ", t1 - t0
 
-    def approx_single_likelihood_on_zeros_nuisance(self,):
+    def approx_single_likelihood_on_zeros_nuisance(
+        self,
+    ):
 
         start = cuda.Event()
         end = cuda.Event()
@@ -1193,7 +1006,7 @@ class sampler:
             self.gpu_vect_pos,
             self.gpu_vect_len,
             self.gpu_param_simu_test,
-            np.float32(self.mean_len_bp_frags / 1000.),
+            np.float32(self.mean_len_bp_frags / 1000.0),
             self.gpu_likelihood_on_zeros_nuis,
             self.gpu_n_vals_intra,
             np.int32(self.init_n_sub_frags),
@@ -1204,22 +1017,17 @@ class sampler:
         end.synchronize()
         # print "CUDA clock execution timing (compute likelihood on zeros): ",
         # secs
-        self.val_on_zero_intra_nuis = (
-            self.gpu_likelihood_on_zeros_nuis.get()[0] * self.log_e
-        )
+        self.val_on_zero_intra_nuis = self.gpu_likelihood_on_zeros_nuis.get()[0] * self.log_e
         self.n_vals_intra = self.gpu_n_vals_intra.get()[0]
         self.val_on_zero_inter_nuis = (
-            self.log_e
-            * (self.n_pixl_sub_mat - self.n_vals_intra)
-            * -1.0
-            * self.param_simu_test["v_inter"][0]
+            self.log_e * (self.n_pixl_sub_mat - self.n_vals_intra) * -1.0 * self.param_simu_test["v_inter"][0]
         )
-        self.curr_likelihood_on_z_nuis = (
-            self.val_on_zero_intra_nuis + self.val_on_zero_inter_nuis
-        )
+        self.curr_likelihood_on_z_nuis = self.val_on_zero_intra_nuis + self.val_on_zero_inter_nuis
         # print "GPU execution time ( approx on zeros single) = ", t1 - t0
 
-    def approx_single_likelihood_on_zeros_mut(self,):
+    def approx_single_likelihood_on_zeros_mut(
+        self,
+    ):
 
         start = cuda.Event()
         end = cuda.Event()
@@ -1242,7 +1050,7 @@ class sampler:
             self.gpu_vect_pos_mut,
             self.gpu_vect_len_mut,
             self.gpu_param_simu,
-            np.float32(self.mean_len_bp_frags / 1000.),
+            np.float32(self.mean_len_bp_frags / 1000.0),
             self.gpu_likelihood_on_zeros,
             self.gpu_n_vals_intra,
             np.int32(self.init_n_sub_frags),
@@ -1254,23 +1062,18 @@ class sampler:
 
         # print "CUDA clock execution timing (compute likelihood on zeros): ",
         # secs
-        self.val_on_zero_intra_mut = (
-            self.gpu_likelihood_on_zeros.get()[0] * self.log_e
-        )
+        self.val_on_zero_intra_mut = self.gpu_likelihood_on_zeros.get()[0] * self.log_e
         self.n_vals_intra = self.gpu_n_vals_intra.get()[0]
         self.val_on_zero_inter_mut = (
-            self.log_e
-            * (self.n_pixl_sub_mat - self.n_vals_intra)
-            * -1.0
-            * self.param_simu["v_inter"][0]
+            self.log_e * (self.n_pixl_sub_mat - self.n_vals_intra) * -1.0 * self.param_simu["v_inter"][0]
         )
-        self.curr_likelihood_on_z_mut = (
-            self.val_on_zero_intra_mut + self.val_on_zero_inter_mut
-        )
+        self.curr_likelihood_on_z_mut = self.val_on_zero_intra_mut + self.val_on_zero_inter_mut
         # self.curr_likelihood_on_z_mut = self.val_on_zero_inter_mut
         # print "GPU execution time ( approx on zeros single) = ", t1 - t0
 
-    def approx_all_likelihood_on_zeros(self,):
+    def approx_all_likelihood_on_zeros(
+        self,
+    ):
 
         start = cuda.Event()
         end = cuda.Event()
@@ -1292,7 +1095,7 @@ class sampler:
             self.collect_gpu_vect_pos,
             self.collect_gpu_vect_len,
             self.gpu_param_simu,
-            np.float32(self.mean_len_bp_frags / 1000.),
+            np.float32(self.mean_len_bp_frags / 1000.0),
             self.gpu_list_uniq_mutations,
             self.gpu_n_uniq,
             self.gpu_vect_likelihood_z,
@@ -1318,7 +1121,9 @@ class sampler:
         end.record()
         end.synchronize()
 
-    def fill_dist_all_mut(self,):
+    def fill_dist_all_mut(
+        self,
+    ):
         start = cuda.Event()
         end = cuda.Event()
         size_block = 1024
@@ -1354,7 +1159,9 @@ class sampler:
             # ", secs print "Total time vect frags to sub frags = ",
             # time.time() - t0
 
-    def fill_dist_single(self,):
+    def fill_dist_single(
+        self,
+    ):
 
         start = cuda.Event()
         end = cuda.Event()
@@ -1508,7 +1315,9 @@ class sampler:
         plt.spy(self.np_sub_mat, markersize=0.1)
         plt.show()
 
-    def eval_all_sub_likelihood(self,):
+    def eval_all_sub_likelihood(
+        self,
+    ):
 
         self.fill_dist_all_mut()
 
@@ -1605,11 +1414,11 @@ class sampler:
         end.synchronize()
         # print "CUDA clock execution timing(extract sub likelihood computing):
         # ", secs
-        self.likelihood_extracted_nz = (
-            self.gpu_curr_likelihood_nz_extract.get()
-        )
+        self.likelihood_extracted_nz = self.gpu_curr_likelihood_nz_extract.get()
 
-    def eval_likelihood_init(self,):
+    def eval_likelihood_init(
+        self,
+    ):
 
         start = cuda.Event()
         end = cuda.Event()
@@ -1659,7 +1468,9 @@ class sampler:
         self.curr_likelihood_on_nz = likelihood_on_nz
         self.likelihood_t = likelihood_on_nz + self.curr_likelihood_on_z
 
-    def eval_likelihood(self,):
+    def eval_likelihood(
+        self,
+    ):
 
         start = cuda.Event()
         end = cuda.Event()
@@ -1712,7 +1523,9 @@ class sampler:
         # print "likelihood on nz= ", likelihood_on_nz
         # return self.curr_likelihood_on_nz, self.curr_likelihood_on_z
 
-    def eval_likelihood_4_nuisance(self,):
+    def eval_likelihood_4_nuisance(
+        self,
+    ):
         start = cuda.Event()
         end = cuda.Event()
 
@@ -1755,9 +1568,7 @@ class sampler:
         end.synchronize()
         likelihood_on_nz_nuis = self.gpu_curr_likelihood_nz_nuis.get()
         # self.curr_likelihood_on_nz = likelihood_on_nz
-        self.curr_likelihood_nuis = (
-            likelihood_on_nz_nuis + self.curr_likelihood_on_z_nuis
-        )
+        self.curr_likelihood_nuis = likelihood_on_nz_nuis + self.curr_likelihood_on_z_nuis
         # print "GPU time likelihood ALL = ", time.time() - t1
         # print "likelihood on nz= ", likelihood_on_nz
         return self.curr_likelihood_nuis
@@ -1833,8 +1644,8 @@ class sampler:
         self.all_scores = np.zeros((self.n_tmp_struct * n), dtype=np.float64)
         max_id = self.modify_gl_cuda_buffer(id_frag, dt)
         flip_eject = 1
-        for (id_cand, i) in zip(self.candidates, list(range(0, n))):
-             # self.gl_window.remote_update()
+        for id_cand, i in zip(self.candidates, list(range(0, n))):
+            # self.gl_window.remote_update()
             self.extract_uniq_mutations(id_frag, id_cand, flip_eject)
             self.perform_mutations(id_frag, id_cand, max_id, 1 == 0)
             id_ctg_b = self.gpu_vect_frags.id_c[id_cand]
@@ -1847,9 +1658,7 @@ class sampler:
                 self.slice_sparse_mat(id_ctg_a, id_ctg_b, id_frag, id_cand)
                 self.extract_current_sub_likelihood()
             id_c_prev_cand = id_ctg_b
-            self.all_scores[
-                i * self.n_tmp_struct : (i + 1) * self.n_tmp_struct
-            ] = self.eval_all_sub_likelihood()
+            self.all_scores[i * self.n_tmp_struct : (i + 1) * self.n_tmp_struct] = self.eval_all_sub_likelihood()
             flip_eject = 0
         # print "done!"
 
@@ -1903,8 +1712,8 @@ class sampler:
         self.all_scores = np.zeros((self.n_tmp_struct * n), dtype=np.float64)
         max_id = self.modify_gl_cuda_buffer(id_frag, self.dt)
         flip_eject = 1
-        for (id_cand, i) in zip(self.candidates, list(range(0, n))):
-             # self.gl_window.remote_update()
+        for id_cand, i in zip(self.candidates, list(range(0, n))):
+            # self.gl_window.remote_update()
             self.extract_uniq_mutations(id_frag, id_cand, flip_eject)
             self.perform_mutations(id_frag, id_cand, max_id, 1 == 0)
             id_ctg_b = self.gpu_vect_frags.id_c[id_cand]
@@ -1914,9 +1723,7 @@ class sampler:
                 self.slice_sparse_mat(id_ctg_a, id_ctg_b, id_frag, id_cand)
                 self.extract_current_sub_likelihood()
             id_c_prev_cand = id_ctg_b
-            self.all_scores[
-                i * self.n_tmp_struct : (i + 1) * self.n_tmp_struct
-            ] = self.eval_all_sub_likelihood()
+            self.all_scores[i * self.n_tmp_struct : (i + 1) * self.n_tmp_struct] = self.eval_all_sub_likelihood()
             flip_eject = 0
 
     def extract_uniq_mutations(self, id_fi, id_fj, flip_eject):
@@ -1947,11 +1754,7 @@ class sampler:
         raw_fstr = "".join(f.readlines())
         f.close()
         if self.active_insert_blocks:
-            logger.info(
-                "size array in shared memory = {}".format(
-                    str(self.n_tmp_struct * self.size_block_4_sub)
-                )
-            )
+            logger.info("size array in shared memory = {}".format(str(self.n_tmp_struct * self.size_block_4_sub)))
             fstr = (
                 raw_fstr.replace(
                     "N_STRUCT_BY_BLOCK_SIZE",
@@ -1981,50 +1784,24 @@ class sampler:
         # self.sub_evaluate_likelihood_sparse =
         # self.module.get_function('sub_evaluate_likelihood_sparse')
 
-        self.kern_fill_vect_dist_all = self.module.get_function(
-            "fill_vect_dist"
-        )
-        self.kern_fill_vect_dist_single = self.module.get_function(
-            "uni_fill_vect_dist"
-        )
+        self.kern_fill_vect_dist_all = self.module.get_function("fill_vect_dist")
+        self.kern_fill_vect_dist_single = self.module.get_function("uni_fill_vect_dist")
         self.init_rng = self.module.get_function("init_rng")
-        self.kern_evaluate_likelihood_single = self.module.get_function(
-            "evaluate_likelihood_sparse"
-        )
-        self.kern_sub_likelihood = self.module.get_function(
-            "eval_sub_likelihood"
-        )
+        self.kern_evaluate_likelihood_single = self.module.get_function("evaluate_likelihood_sparse")
+        self.kern_sub_likelihood = self.module.get_function("eval_sub_likelihood")
         # self.kern_select_them = self.module.get_function('select_them')
         self.kern_slice_sp_mat = self.module.get_function("slice_sp_mat")
-        self.kern_prepare_sparse_call = self.module.get_function(
-            "prepare_sparse_call"
-        )
-        self.kern_eval_likelihood_zeros = self.module.get_function(
-            "eval_likelihood_on_zero"
-        )
-        self.kern_eval_all_likelihood_zeros_1st = self.module.get_function(
-            "eval_all_likelihood_on_zero_1st"
-        )
-        self.kern_eval_all_likelihood_zeros_2nd = self.module.get_function(
-            "eval_all_likelihood_on_zero_2nd"
-        )
-        self.kern_extract_sub_likelihood = self.module.get_function(
-            "extract_sub_likelihood"
-        )
-        self.kern_uniq_mutations = self.module.get_function(
-            "extract_uniq_mutations"
-        )
+        self.kern_prepare_sparse_call = self.module.get_function("prepare_sparse_call")
+        self.kern_eval_likelihood_zeros = self.module.get_function("eval_likelihood_on_zero")
+        self.kern_eval_all_likelihood_zeros_1st = self.module.get_function("eval_all_likelihood_on_zero_1st")
+        self.kern_eval_all_likelihood_zeros_2nd = self.module.get_function("eval_all_likelihood_on_zero_2nd")
+        self.kern_extract_sub_likelihood = self.module.get_function("extract_sub_likelihood")
+        self.kern_uniq_mutations = self.module.get_function("extract_uniq_mutations")
         self.kern_eval_all_scores = self.module.get_function("eval_all_scores")
-        self.kern_select_uniq_id_c = self.module.get_function(
-            "select_uniq_id_c"
-        )
-        self.kern_make_old_2_new_id_c = self.module.get_function(
-            "make_old_2_new_id_c"
-        )
+        self.kern_select_uniq_id_c = self.module.get_function("select_uniq_id_c")
+        self.kern_make_old_2_new_id_c = self.module.get_function("make_old_2_new_id_c")
         self.kern_count_vals = self.module.get_function("count_num")
-        self.kern_update_gpu_vect = self.module.get_function(
-            "update_gpu_vect_frags"
-        )
+        self.kern_update_gpu_vect = self.module.get_function("update_gpu_vect_frags")
         self.kern_explode_genome = self.module.get_function("explode_genome")
         if self.active_insert_blocks:
             self.kern_get_bounds = self.module.get_function("get_bounds")
@@ -2032,12 +1809,8 @@ class sampler:
             self.kern_insert_block = self.module.get_function("insert_block")
         self.kern_frags_2_gl_pxl = self.module.get_function("gpu_struct_2_pxl")
         self.kern_update_matrix = self.module.get_function("update_matrix")
-        self.kern_update_gl_buffer = self.module.get_function(
-            "update_gl_buffer"
-        )
-        self.kern_prepare_sparse_call_4_gl = self.module.get_function(
-            "prepare_sparse_call_4_gl"
-        )
+        self.kern_update_gl_buffer = self.module.get_function("update_gl_buffer")
+        self.kern_prepare_sparse_call_4_gl = self.module.get_function("prepare_sparse_call_4_gl")
 
         self.set_null = self.module.get_function("set_null")
         self.copy_gpu_array = self.module.get_function("copy_gpu_array")
@@ -2045,15 +1818,9 @@ class sampler:
         self.gpu_transloc = []
         self.pop_out = self.module.get_function("pop_out_frag")
         self.flip_frag = self.module.get_function("flip_frag")
-        self.pop_in_1 = self.module.get_function(
-            "pop_in_frag_1"
-        )  # split insert @ left
-        self.pop_in_2 = self.module.get_function(
-            "pop_in_frag_2"
-        )  # split insert @ right
-        self.pop_in_3 = self.module.get_function(
-            "pop_in_frag_3"
-        )  # insert @ left
+        self.pop_in_1 = self.module.get_function("pop_in_frag_1")  # split insert @ left
+        self.pop_in_2 = self.module.get_function("pop_in_frag_2")  # split insert @ right
+        self.pop_in_3 = self.module.get_function("pop_in_frag_3")  # insert @ left
         # self.pop_in_4 = self.module.get_function('pop_in_frag_4') # insert @
         # right
         self.split = self.module.get_function("split_contig")
@@ -2082,7 +1849,9 @@ class sampler:
             "local_scramble d4",
         ]
 
-    def update_neighbourhood(self,):
+    def update_neighbourhood(
+        self,
+    ):
         tmp_sorted = self.hic_matrix_sub_sampled.argsort(axis=1)
         sorted_neighbours = []
         for i in self.list_frag_to_sample:
@@ -2282,9 +2051,7 @@ class sampler:
                 end.synchronize()
                 max_id2 = np.int32(ga.max(self.trans2_gpu_id_contigs).get())
                 # print 'max_id2 = ', max_id2
-                curr_vect_trans = self.collector_gpu_vect_frags[
-                    id_start_transloc + mode
-                ]
+                curr_vect_trans = self.collector_gpu_vect_frags[id_start_transloc + mode]
                 start.record()
                 # self.simple_copy(curr_vect_trans.get_ptr(),
                 # self.trans2_gpu_vect_frags.get_ptr(), self.n_frags,
@@ -2360,9 +2127,7 @@ class sampler:
 
                 start.record()
                 self.kern_insert_block(
-                    self.collector_gpu_vect_frags[
-                        id_start_insert + id
-                    ].get_ptr(),
+                    self.collector_gpu_vect_frags[id_start_insert + id].get_ptr(),
                     self.trans1_gpu_vect_frags.get_ptr(),
                     self.gpu_vect_frags.get_ptr(),
                     np.int32(id_fA),
@@ -2394,7 +2159,9 @@ class sampler:
         # self.all_transloc(id_fA, id_fB, max_id, is_first)
         # print "all_pop out time execution  = ", time.time() - tic_fillB
 
-    def bomb_the_genome(self,):
+    def bomb_the_genome(
+        self,
+    ):
 
         size_block = 256
         block_ = (size_block, 1, 1)
@@ -2645,15 +2412,11 @@ class sampler:
         # print 'next id_fB = ', c.next[id_f_sampled]
         # print '@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@'
 
-    def setup_rippe_parameters_4_simu(
-        self, kuhn, lm, slope, d, val_inter, d_max
-    ):
+    def setup_rippe_parameters_4_simu(self, kuhn, lm, slope, d, val_inter, d_max):
 
         kuhn = np.float32(kuhn)
         lm = np.float32(lm)
-        c1 = np.float32(
-            (0.53 * np.power(lm / kuhn, slope)) * np.power(kuhn, -3)
-        )
+        c1 = np.float32((0.53 * np.power(lm / kuhn, slope)) * np.power(kuhn, -3))
         slope = np.float32(slope)
         d = np.float32(d)
         d_max = np.float32(d_max)
@@ -2664,12 +2427,9 @@ class sampler:
 
             return (
                 0.53
-                * (param[0] ** -3.)
+                * (param[0] ** -3.0)
                 * np.power((param[1] * dist / param[0]), (param[2]))
-                * np.exp(
-                    (param[3] - 2)
-                    / ((np.power((param[1] * dist / param[0]), 2) + param[3]))
-                )
+                * np.exp((param[3] - 2) / ((np.power((param[1] * dist / param[0]), 2) + param[3])))
             )
 
         rippe_inter = rippe(parameters, d_max)
@@ -2686,9 +2446,7 @@ class sampler:
         fact = np.float32(np.abs(fact))
         kuhn = np.float32(np.abs(kuhn))
         lm = np.float32(np.abs(lm))
-        c1 = np.float32(
-            (0.53 * np.power(lm / kuhn, slope)) * np.power(kuhn, -3)
-        )
+        c1 = np.float32((0.53 * np.power(lm / kuhn, slope)) * np.power(kuhn, -3))
         slope = np.float32(slope)
         d = np.float32(d)
         fact = np.float32(fact)
@@ -2715,9 +2473,7 @@ class sampler:
 
         return p
 
-    def estimate_parameters_rippe(
-        self, max_dist_kb, size_bin_kb, display_graph
-    ):
+    def estimate_parameters_rippe(self, max_dist_kb, size_bin_kb, display_graph):
         """
         estimation by least square optimization of Rippe parameters on the
         experimental data
@@ -2725,9 +2481,7 @@ class sampler:
         :param size_bin_kb:
         """
         logger.info("estimation of the parameters of the model")
-        self.bins = np.arange(
-            size_bin_kb, max_dist_kb + size_bin_kb, size_bin_kb
-        )
+        self.bins = np.arange(size_bin_kb, max_dist_kb + size_bin_kb, size_bin_kb)
 
         self.mean_contacts = np.zeros_like(self.bins, dtype=np.float32)
         self.dict_collect = dict()
@@ -2746,10 +2500,7 @@ class sampler:
             init_id_fi = int(info_i[0])
             # pos_i = self.S_o_A_frags["pos"][init_id_fi]
             id_c_i = self.S_o_A_frags["id_c"][init_id_fi]
-            s_i = (
-                self.S_o_A_frags["start_bp"][init_id_fi] / 1000.0
-                + self.np_sub_frags_2_frags[i][1]
-            )
+            s_i = self.S_o_A_frags["start_bp"][init_id_fi] / 1000.0 + self.np_sub_frags_2_frags[i][1]
             len_kb_c_i = self.S_o_A_frags["l_cont_bp"][init_id_fi] / 1000
             # local_bins = np.arange(size_bin_kb, min(len_kb_c_i, max_dist_kb)
             # + size_bin_kb, size_bin_kb) local_storage =
@@ -2776,9 +2527,7 @@ class sampler:
             if size_bin_kb < len_kb_c_i:
                 # local_bins = np.arange(size_bin_kb, min(len_kb_c_i,
                 # max_dist_kb) + size_bin_kb, size_bin_kb)
-                local_bins = np.arange(
-                    size_bin_kb, max_dist_kb + size_bin_kb, size_bin_kb
-                )
+                local_bins = np.arange(size_bin_kb, max_dist_kb + size_bin_kb, size_bin_kb)
                 local_storage = np.zeros_like(local_bins, dtype=np.int32)
 
                 for fj, dj in zip(id_j, data):
@@ -2787,10 +2536,7 @@ class sampler:
                     id_c_j = self.S_o_A_frags["id_c"][init_id_fj]
                     if id_c_i == id_c_j:
                         # pos_j = self.S_o_A_frags["pos"][init_id_fj]
-                        s_j = (
-                            self.S_o_A_frags["start_bp"][init_id_fj] / 1000.0
-                            + self.np_sub_frags_2_frags[fj][1]
-                        )
+                        s_j = self.S_o_A_frags["start_bp"][init_id_fj] / 1000.0 + self.np_sub_frags_2_frags[fj][1]
                         d = np.abs(s_i - s_j)
                         if d < max_dist_kb:
                             id_bin = int(d / size_bin_kb)
@@ -2836,9 +2582,7 @@ class sampler:
         # print "size mean contacts vector = ", self.mean_contacts_upd.shape
         # print "mean contacts vector = ", self.mean_contacts_upd
 
-        p, self.y_estim = opti.estimate_param_rippe(
-            self.mean_contacts_upd, self.bins_upd
-        )
+        p, self.y_estim = opti.estimate_param_rippe(self.mean_contacts_upd, self.bins_upd)
         ##########################################
         logger.info("p from estimate parameters  = {}".format(p))
         # p = list(p[0])
@@ -2852,13 +2596,9 @@ class sampler:
         self.mean_value_trans = self.mean_value_trans / 10.0
         ##########################################
 
-        estim_max_dist = opti.estimate_max_dist_intra(
-            fit_param, self.mean_value_trans
-        )
+        estim_max_dist = opti.estimate_max_dist_intra(fit_param, self.mean_value_trans)
         logger.info("estimate max dist cis trans = {}".format(estim_max_dist))
-        self.param_simu = self.setup_rippe_parameters(
-            fit_param, estim_max_dist
-        )
+        self.param_simu = self.setup_rippe_parameters(fit_param, estim_max_dist)
         self.param_simu_test = self.param_simu
         self.gpu_param_simu = cuda.mem_alloc(self.param_simu.nbytes)
         self.gpu_param_simu_test = cuda.mem_alloc(self.param_simu.nbytes)
@@ -2897,9 +2637,7 @@ class sampler:
         :param size_bin_kb:
         """
         logger.info("estimation of the parameters of the model")
-        self.bins = np.arange(
-            size_bin_kb, max_dist_kb + size_bin_kb, size_bin_kb
-        )
+        self.bins = np.arange(size_bin_kb, max_dist_kb + size_bin_kb, size_bin_kb)
 
         self.mean_contacts = np.zeros_like(self.bins, dtype=np.float32)
         self.dict_collect = dict()
@@ -2918,10 +2656,7 @@ class sampler:
             init_id_fi = info_i[0]
             # pos_i = self.S_o_A_frags["pos"][init_id_fi]
             id_c_i = self.S_o_A_frags["id_c"][init_id_fi]
-            s_i = (
-                self.S_o_A_frags["start_bp"][init_id_fi] / 1000.0
-                + self.np_sub_frags_2_frags[i][1]
-            )
+            s_i = self.S_o_A_frags["start_bp"][init_id_fi] / 1000.0 + self.np_sub_frags_2_frags[i][1]
             len_kb_c_i = self.S_o_A_frags["l_cont_bp"][init_id_fi] / 1000
             local_bins = np.arange(
                 size_bin_kb,
@@ -2936,10 +2671,7 @@ class sampler:
                 id_c_j = self.S_o_A_frags["id_c"][init_id_fj]
                 if id_c_i == id_c_j:
                     # pos_j = self.S_o_A_frags["pos"][init_id_fj]
-                    s_j = (
-                        self.S_o_A_frags["start_bp"][init_id_fj] / 1000.0
-                        + self.np_sub_frags_2_frags[fj][1]
-                    )
+                    s_j = self.S_o_A_frags["start_bp"][init_id_fj] / 1000.0 + self.np_sub_frags_2_frags[fj][1]
                     d = np.abs(s_i - s_j)
                     if d < max_dist_kb:
                         id_bin = d / size_bin_kb
@@ -2980,22 +2712,16 @@ class sampler:
         # ndi.filters.gaussian_filter1d(self.mean_contacts_upd,
         # sigma=len(self.bins_upd) / 5.)
 
-        p, self.y_estim = nuis.estimate_param_hic(
-            self.mean_contacts_upd, self.bins_upd
-        )
+        p, self.y_estim = nuis.estimate_param_hic(self.mean_contacts_upd, self.bins_upd)
         ##########################################
         fit_param = p.x
         ##########################################
         logger.info("mean value trans = {}".format(self.mean_value_trans))
         ##########################################
-        estim_max_dist = nuis.estimate_max_dist_intra(
-            fit_param, self.mean_value_trans
-        )
+        estim_max_dist = nuis.estimate_max_dist_intra(fit_param, self.mean_value_trans)
         logger.info("max distance cis/trans = {}".format(estim_max_dist))
         ##########################################
-        self.param_simu = self.setup_model_parameters(
-            fit_param, estim_max_dist
-        )
+        self.param_simu = self.setup_model_parameters(fit_param, estim_max_dist)
         self.gpu_param_simu = cuda.mem_alloc(self.param_simu.nbytes)
         self.gpu_param_simu_test = cuda.mem_alloc(self.param_simu.nbytes)
 
@@ -3058,7 +2784,7 @@ class sampler:
             self.test_copy_struct(i, 0, 0, max_id)
             self.gpu_vect_frags.copy_from_gpu()
             c = self.gpu_vect_frags
-             # self.gl_window.remote_update()
+            # self.gl_window.remote_update()
             if (
                 np.any(c.pos < 0)
                 or np.any(c.l_cont < 0)
@@ -3096,7 +2822,7 @@ class sampler:
         self.test_copy_struct(id_fA, id_fB, op_sampled, max_id)
         self.gpu_vect_frags.copy_from_gpu()
         # c = self.gpu_vect_frags
-         # self.gl_window.remote_update()
+        # self.gl_window.remote_update()
 
     def display_current_matrix(self, filename):
         self.gpu_vect_frags.copy_from_gpu()
@@ -3192,7 +2918,9 @@ class sampler:
                 full_order.extend(ordered_frag)
         return full_order, dict_contig
 
-    def load_gl_cuda_vbo(self,):
+    def load_gl_cuda_vbo(
+        self,
+    ):
         # Prefer CUDA/OpenGL interop when VBOs are available so downstream
         # code that expects registered GL buffers continues to work.
         if hasattr(self, "pos_vbo"):
@@ -3200,18 +2928,14 @@ class sampler:
 
             # Depends on whether pyopengl_accelerate is disabled
             try:
-                self.gpu_pos = cuda.RegisteredBuffer(
-                    int(self.pos_vbo.buffers[0]), cuda.graphics_map_flags.NONE
-                )
+                self.gpu_pos = cuda.RegisteredBuffer(int(self.pos_vbo.buffers[0]), cuda.graphics_map_flags.NONE)
                 if hasattr(self, "col_vbo"):
                     self.gpu_col = cuda.RegisteredBuffer(
                         int(self.col_vbo.buffers[0]),
                         cuda.graphics_map_flags.NONE,
                     )
             except AttributeError:
-                self.gpu_pos = cuda.RegisteredBuffer(
-                    int(self.pos_vbo.buffer), cuda.graphics_map_flags.NONE
-                )
+                self.gpu_pos = cuda.RegisteredBuffer(int(self.pos_vbo.buffer), cuda.graphics_map_flags.NONE)
                 if hasattr(self, "col_vbo"):
                     self.gpu_col = cuda.RegisteredBuffer(
                         int(self.col_vbo.buffer),
@@ -3232,12 +2956,8 @@ class sampler:
         self.ctx.synchronize()
 
     def load_gl_cuda_tex_buffer(self, im_init):
-        self.cuda_pbo_resource = cuda.BufferObject(
-            int(self.pbo_im_buffer)
-        )  # Mapping GLBuffer to cuda_resource
-        self.gpu_im_gl = ga.zeros(
-            (self.gl_size_im, self.gl_size_im), dtype=np.int32
-        )
+        self.cuda_pbo_resource = cuda.BufferObject(int(self.pbo_im_buffer))  # Mapping GLBuffer to cuda_resource
+        self.gpu_im_gl = ga.zeros((self.gl_size_im, self.gl_size_im), dtype=np.int32)
 
         # self.array = cuda.matrix_to_array(im_init, "C") # C-style instead of
         # Fortran-style: row-major self.array = ga.to_gpu(ary=im_init) #
@@ -3288,9 +3008,7 @@ class sampler:
         )  # sort the contigs by length
 
         self.cpu_length_contigs = np.float32(self.gpu_uniq_len.get())
-        self.mean_length_contigs = self.cpu_length_contigs[
-            : self.n_contigs
-        ].mean()
+        self.mean_length_contigs = self.cpu_length_contigs[: self.n_contigs].mean()
 
         block_ = (size_block, 1, 1)
         grid_ = (int(self.n_contigs / size_block + 1), 1)
@@ -3356,8 +3074,6 @@ class sampler:
             grid=grid_,
         )
         self.ctx.synchronize()
-        
-       
 
         # update image #####
         # compute cumulated length thrust...
@@ -3441,18 +3157,14 @@ class sampler:
             self.gpu_sub_sp_no_rep_cols,
         )
         t_end = time.time()
-        logger.info(
-            "GPU thrust sort 1: elapsed time  = {}".format(t_end - t_start)
-        )
+        logger.info("GPU thrust sort 1: elapsed time  = {}".format(t_end - t_start))
         self.thrust_module.sort_by_keys_zip(
             self.gpu_sub_sp_no_rep_rows,
             int(self.n_sub_vals),
             self.gpu_sub_sp_no_rep_data,
         )
         t_end_2 = time.time()
-        logger.info(
-            "GPU thrust sort 2: elapsed time  = {}".format(t_end_2 - t_end)
-        )
+        logger.info("GPU thrust sort 2: elapsed time  = {}".format(t_end_2 - t_end))
 
     def prepare_sparse_call(self):
         size_block = 512
@@ -3465,12 +3177,8 @@ class sampler:
         self.gpu_counter_select.fill(0)
         self.ctx.synchronize()
 
-        self.gpu_sub_sp_block_indptr = ga.to_gpu(
-            np.zeros((self.n_sub_vals,), dtype=np.int32)
-        )
-        self.gpu_info_blocks = ga.to_gpu(
-            np.zeros((n_blocks,), dtype=self.int3)
-        )
+        self.gpu_sub_sp_block_indptr = ga.to_gpu(np.zeros((self.n_sub_vals,), dtype=np.int32))
+        self.gpu_info_blocks = ga.to_gpu(np.zeros((n_blocks,), dtype=self.int3))
         # print "grid = ", grid_
         self.gpu_counter_select.fill(0)
         self.ctx.synchronize()
@@ -3488,11 +3196,7 @@ class sampler:
         end.record()
         end.synchronize()
         elapsed_seconds = end.time_since(start) * 1e-3
-        logger.debug(
-            "GPU prepare sparse call: elapsed time  = {}".format(
-                elapsed_seconds
-            )
-        )
+        logger.debug("GPU prepare sparse call: elapsed time  = {}".format(elapsed_seconds))
 
     def return_rippe_vals(self, p0):
         y_eval = opti.peval(self.bins, p0)
@@ -3505,7 +3209,7 @@ class sampler:
         if x < d_max:
             rippe = fact * (
                 0.53
-                * (kuhn ** -3.)
+                * (kuhn**-3.0)
                 * np.power((lm * x / kuhn), slope)
                 * np.exp((d - 2) / ((np.power((lm * x / kuhn), 2) + d)))
             )
@@ -3530,7 +3234,7 @@ class sampler:
 
         self.gpu_vect_frags.copy_from_gpu()
         # max_id = self.modify_gl_cuda_buffer(0, dt)
-         # self.gl_window.remote_update()
+        # self.gl_window.remote_update()
 
         curr_param = np.copy(self.param_simu)
         kuhn, lm, c1, slope, d, d_max, fact, d_nuc = curr_param[0]
@@ -3549,74 +3253,40 @@ class sampler:
             new_fact = fact + np.random.normal(loc=0.0, scale=self.sigma_fact)
             test_param = [kuhn, lm, slope, d, new_fact]
             # new_d_max = opti.estimate_max_dist_intra(test_param, d_nuc)
-            new_d_max = opti.estimate_max_dist_intra_nuis(
-                test_param, d_nuc, d_max
-            )
-            c1 = np.float32(
-                (0.53 * np.power(lm / kuhn, slope)) * np.power(kuhn, -3)
-            )
-            out_test_param = [
-                (kuhn, lm, c1, slope, d, new_d_max, new_fact, d_nuc)
-            ]
+            new_d_max = opti.estimate_max_dist_intra_nuis(test_param, d_nuc, d_max)
+            c1 = np.float32((0.53 * np.power(lm / kuhn, slope)) * np.power(kuhn, -3))
+            out_test_param = [(kuhn, lm, c1, slope, d, new_d_max, new_fact, d_nuc)]
         elif id_modif == 1:  # slope
-            new_slope = slope + np.random.normal(
-                loc=0.0, scale=self.sigma_slope
-            )
+            new_slope = slope + np.random.normal(loc=0.0, scale=self.sigma_slope)
             test_param = [kuhn, lm, new_slope, d, fact]
             # new_d_max = opti.estimate_max_dist_intra(test_param, d_nuc)
-            new_d_max = opti.estimate_max_dist_intra_nuis(
-                test_param, d_nuc, d_max
-            )
-            c1 = np.float32(
-                (0.53 * np.power(lm / kuhn, new_slope)) * np.power(kuhn, -3)
-            )
-            out_test_param = [
-                (kuhn, lm, c1, new_slope, d, new_d_max, fact, d_nuc)
-            ]
+            new_d_max = opti.estimate_max_dist_intra_nuis(test_param, d_nuc, d_max)
+            c1 = np.float32((0.53 * np.power(lm / kuhn, new_slope)) * np.power(kuhn, -3))
+            out_test_param = [(kuhn, lm, c1, new_slope, d, new_d_max, fact, d_nuc)]
         elif id_modif == 2:  # max distance intra
-            new_d_max = d_max + np.random.normal(
-                loc=0.0, scale=self.sigma_d_max
-            )
+            new_d_max = d_max + np.random.normal(loc=0.0, scale=self.sigma_d_max)
             test_param = [kuhn, lm, slope, d, fact]
             new_d_nuc = opti.peval(new_d_max, test_param)
-            c1 = np.float32(
-                (0.53 * np.power(lm / kuhn, slope)) * np.power(kuhn, -3)
-            )
-            out_test_param = [
-                (kuhn, lm, c1, slope, d, new_d_max, fact, new_d_nuc)
-            ]
+            c1 = np.float32((0.53 * np.power(lm / kuhn, slope)) * np.power(kuhn, -3))
+            out_test_param = [(kuhn, lm, c1, slope, d, new_d_max, fact, new_d_nuc)]
         elif id_modif == 3:  # val trans
             if self.sigma_d_nuc <= 0:
                 new_d_nuc = d_nuc
             else:
-                new_d_nuc = d_nuc + np.random.normal(
-                    loc=0.0, scale=self.sigma_d_nuc
-                )
+                new_d_nuc = d_nuc + np.random.normal(loc=0.0, scale=self.sigma_d_nuc)
             test_param = [kuhn, lm, slope, d, fact]
             # new_d_max = opti.estimate_max_dist_intra(test_param, new_d_nuc)
-            new_d_max = opti.estimate_max_dist_intra_nuis(
-                test_param, new_d_nuc, d_max
-            )
-            c1 = np.float32(
-                (0.53 * np.power(lm / kuhn, slope)) * np.power(kuhn, -3)
-            )
-            out_test_param = [
-                (kuhn, lm, c1, slope, d, new_d_max, fact, new_d_nuc)
-            ]
+            new_d_max = opti.estimate_max_dist_intra_nuis(test_param, new_d_nuc, d_max)
+            c1 = np.float32((0.53 * np.power(lm / kuhn, slope)) * np.power(kuhn, -3))
+            out_test_param = [(kuhn, lm, c1, slope, d, new_d_max, fact, new_d_nuc)]
         else:  # d
             new_d = d + np.random.normal(loc=0.0, scale=self.sigma_d)
 
             test_param = [kuhn, lm, slope, new_d, fact]
             # new_d_max = opti.estimate_max_dist_intra(test_param, d_nuc)
-            new_d_max = opti.estimate_max_dist_intra_nuis(
-                test_param, d_nuc, d_max
-            )
-            c1 = np.float32(
-                (0.53 * np.power(lm / kuhn, slope)) * np.power(kuhn, -3)
-            )
-            out_test_param = [
-                (kuhn, lm, c1, slope, new_d, new_d_max, fact, d_nuc)
-            ]
+            new_d_max = opti.estimate_max_dist_intra_nuis(test_param, d_nuc, d_max)
+            c1 = np.float32((0.53 * np.power(lm / kuhn, slope)) * np.power(kuhn, -3))
+            out_test_param = [(kuhn, lm, c1, slope, new_d, new_d_max, fact, d_nuc)]
 
         out_test_param = np.array(out_test_param, dtype=self.param_simu_T)
         # print "test param = ", test_param
@@ -3652,7 +3322,9 @@ class sampler:
             y_rippe,
         )
 
-    def setup_distri_frags(self,):
+    def setup_distri_frags(
+        self,
+    ):
         # generates random variables for every frags
         # TO DO : prendre en compte la composition initiale pour les probas!!!
 
@@ -3660,11 +3332,7 @@ class sampler:
         self.distri_frags = dict()
         fact = 3.0
         # print "N frags = ", self.n_frags
-        logger.info(
-            "Shape sub mat = {}".format(
-                self.sym_sub_sampled_sparse_matrix.shape
-            )
-        )
+        logger.info("Shape sub mat = {}".format(self.sym_sub_sampled_sparse_matrix.shape))
         # print "shape indices = ",
         # self.sub_sampled_sparse_matrix.indices.shape
         # print "shape indptr = ", self.sub_sampled_sparse_matrix.indptr.shape
@@ -3739,9 +3407,7 @@ class sampler:
 
         if ori_id in self.id_frag_duplicated:
             d = self.frag_dispatcher[ori_id]
-            dup = np.setdiff1d(
-                self.collector_id_repeats[d["x"] : d["y"]], id_fA
-            )
+            dup = np.setdiff1d(self.collector_id_repeats[d["x"] : d["y"]], id_fA)
             out.extend(dup)
 
         for id_fB in init_id:
@@ -3761,19 +3427,13 @@ class sampler:
         for i in range(0, self.n_frags):
             id_neighbours = self.sorted_neighbours[i, -delta:]
             # id_no_neighbours = self.sorted_neighbours[i, 0:delta]
-            scores = np.array(
-                self.matrix_normalized[i, id_neighbours], dtype=np.float32
-            )
+            scores = np.array(self.matrix_normalized[i, id_neighbours], dtype=np.float32)
             # val_mean = self.matrix_normalized[i, id_no_neighbours].mean()
             norm_scores = scores / scores.sum()
             self.jump_dictionnary[i] = dict()
             self.jump_dictionnary[i]["proba"] = norm_scores
-            self.jump_dictionnary[i]["frags"] = np.array(
-                id_neighbours, dtype=np.int32
-            )
-            self.jump_dictionnary[i]["distri"] = np.zeros(
-                (self.n_frags), dtype=np.float32
-            )
+            self.jump_dictionnary[i]["frags"] = np.array(id_neighbours, dtype=np.int32)
+            self.jump_dictionnary[i]["distri"] = np.zeros((self.n_frags), dtype=np.float32)
             self.jump_dictionnary[i]["set_frags"] = set()
             for k in range(0, delta):
                 id_frag = self.jump_dictionnary[i]["frags"][k]
@@ -3803,18 +3463,15 @@ class sampler:
         val = 1.0
         return val
 
-    def free_gpu(self,):
+    def free_gpu(
+        self,
+    ):
 
         self.gpu_vect_frags.__del__()
         self.rng_states.free()
         (free, total) = cuda.mem_get_info()
-        logger.debug(
-            (
-                "Global memory occupancy after cleaning processes: %f%% free"
-                % (free * 100 / total)
-            )
-        )
-        logger.debug(("Global free memory  :%i Mo free" % (free / 10 ** 6)))
+        logger.debug(("Global memory occupancy after cleaning processes: %f%% free" % (free * 100 / total)))
+        logger.debug(("Global free memory  :%i Mo free" % (free / 10**6)))
         self.ctx.detach()
         del self.module
 
