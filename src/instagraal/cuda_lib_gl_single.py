@@ -7,7 +7,7 @@ import pycuda.tools
 from pycuda import characterize
 import pycuda.driver as cuda
 import pycuda.compiler
-from instagraal.gpustruct import GPUStruct
+from .gpustruct import GPUStruct
 from pycuda import gpuarray as ga
 
 # from pycuda.scan import InclusiveScanKernel
@@ -22,16 +22,16 @@ import time
 import matplotlib.pyplot as plt
 
 # import optim_rippe_curve as opti1
-import instagraal.optim_rippe_curve_update as opti
-import instagraal.init_nuisance as nuis
+from . import optim_rippe_curve_update as opti
+from . import init_nuisance as nuis
 
 # from OpenGL.arrays import vbo
 import scipy as scp
 
 from importlib.resources import files as _pkg_files
 
-from instagraal import log
-from instagraal.log import logger
+from . import log
+from .log import logger
 
 logger.setLevel(log.CURRENT_LOG_LEVEL)
 

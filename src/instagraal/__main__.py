@@ -1,3 +1,3 @@
-from instagraal.instagraal import main
+from . import main
 
 main()

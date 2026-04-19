@@ -59,13 +59,13 @@ import pycuda.driver as cuda
 # helper modules
 import numpy as np
 import matplotlib.pyplot as plt
-from instagraal.simu_single import simulation
+from .simu_single import simulation
 
 import pickle
 import logging
-from instagraal import log
-from instagraal.log import logger
-from instagraal.version import __version__ as VERSION_NUMBER
+from . import log
+from .log import logger
+from .version import __version__ as VERSION_NUMBER
 
 DEFAULT_CYCLES = 100
 DEFAULT_LEVEL = 4
