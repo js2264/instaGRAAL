@@ -86,11 +86,11 @@ instagraal = "instagraal.instagraal:main"
 instagraal-polish = "instagraal.parse_info_frags:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["instagraal"]
+packages = ["src/instagraal"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "instagraal/",
+    "src/instagraal/",
     "scripts/",
     "example/",
     "README.md",
@@ -118,7 +118,7 @@ lint.extend-select = [
     # "UP", # pyupgrade
     "W",  # style  warnings
 ]
-lint.isort.known-first-party = ["momics"]
+lint.isort.known-first-party = ["instagraal"]
 
 [tool.pytest.ini_options]
 markers = ["order: mark test to run in a specific order"]
@@ -129,7 +129,7 @@ addopts = [
     "-ra",
     "--strict-config",
     "--strict-markers",
-    "--cov=momics",
+    "--cov=instagraal",
     "--cov-config=pyproject.toml",
     "--cov-report=term-missing",
     "--cov-report=html",

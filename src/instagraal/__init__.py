@@ -1,5 +1,3 @@
-from instagraal import *
-
 __author__ = "Lyam Baudry, \
               Hervé Marie-Nelly"
 __copyright__ = "Copyright © 2014-2018, Institut Pasteur, Paris, France"
