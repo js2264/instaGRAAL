@@ -30,7 +30,7 @@ jobs:
 
       - name: Run help command
         run: |
-          docker run --gpus all \
+          docker run \
             -v ${{ github.workspace }}/example:/work/example \
             instagraal \
             instagraal --help

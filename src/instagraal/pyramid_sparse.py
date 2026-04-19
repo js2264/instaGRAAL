@@ -100,7 +100,7 @@ def build_and_filter(base_folder, size_pyramid, factor, thresh_factor=1):
         and os.path.exists(current_abs_fragments_contacts)
     ):
         logger.info("start filtering")
-        pyramid_0 = h5py.File(init_pyramid_file, "a")
+        pyramid_0 = h5py.File(init_pyramid_file, "r")
 
         remove_problematic_fragments(
             contig_info,

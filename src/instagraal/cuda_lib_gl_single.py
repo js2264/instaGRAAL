@@ -99,7 +99,7 @@ class sampler:
         self.sparse_data_2_gpu()
         self.use_rippe = use_rippe
 
-        self.ctx = cuda.Context
+        self.ctx = cuda.Context.get_current()
         # self.pos_vbo = pos_vbo
         # self.col_vbo = col_vbo
         self.pos = pos
@@ -3193,27 +3193,35 @@ class sampler:
         return full_order, dict_contig
 
     def load_gl_cuda_vbo(self,):
-        # # CUDA Ressorces
-        # self.pos_vbo.bind()
+        # Prefer CUDA/OpenGL interop when VBOs are available so downstream
+        # code that expects registered GL buffers continues to work.
+        if hasattr(self, "pos_vbo"):
+            self.pos_vbo.bind()
 
-        # # Depends on whether pyopengl_accelerate is disabled
-        # try:
-        #     self.gpu_pos = cuda.RegisteredBuffer(
-        #         int(self.pos_vbo.buffers[0]), cuda.graphics_map_flags.NONE
-        #     )
-        #     self.gpu_col = cuda.RegisteredBuffer(
-        #         int(self.col_vbo.buffers[0]), cuda.graphics_map_flags.NONE
-        #     )
-        # except AttributeError:
-        #     self.gpu_pos = cuda.RegisteredBuffer(
-        #         int(self.pos_vbo.buffer), cuda.graphics_map_flags.NONE
-        #     )
-        #     self.gpu_col = cuda.RegisteredBuffer(
-        #         int(self.col_vbo.buffer), cuda.graphics_map_flags.NONE
-        #     )
-        # self.col_vbo.bind()
+            # Depends on whether pyopengl_accelerate is disabled
+            try:
+                self.gpu_pos = cuda.RegisteredBuffer(
+                    int(self.pos_vbo.buffers[0]), cuda.graphics_map_flags.NONE
+                )
+                if hasattr(self, "col_vbo"):
+                    self.gpu_col = cuda.RegisteredBuffer(
+                        int(self.col_vbo.buffers[0]),
+                        cuda.graphics_map_flags.NONE,
+                    )
+            except AttributeError:
+                self.gpu_pos = cuda.RegisteredBuffer(
+                    int(self.pos_vbo.buffer), cuda.graphics_map_flags.NONE
+                )
+                if hasattr(self, "col_vbo"):
+                    self.gpu_col = cuda.RegisteredBuffer(
+                        int(self.col_vbo.buffer),
+                        cuda.graphics_map_flags.NONE,
+                    )
 
-        self.gpu_pos = ga.to_gpu(ary=self.pos)
+            if hasattr(self, "col_vbo"):
+                self.col_vbo.bind()
+        else:
+            self.gpu_pos = ga.to_gpu(ary=self.pos)
         self.gpu_vel = ga.to_gpu(ary=self.vel)
 
         self.pos_gen_cuda = cuda.mem_alloc(self.pos.nbytes)
