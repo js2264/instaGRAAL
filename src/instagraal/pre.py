@@ -245,15 +245,19 @@ def _pairs_to_pixels(pairs_path: pathlib.Path, bins: pd.DataFrame) -> tuple[pd.D
 def _write_fragments_list(bins: pd.DataFrame, output_path: pathlib.Path) -> None:
     """Write ``fragments_list.txt`` from a bins DataFrame with gc_content.
 
-    Format (tab-separated, 1-indexed IDs)::
+    Format (tab-separated, per-contig 1-indexed IDs)::
 
         id  chrom  start_pos  end_pos  size  gc_content
+
+    The ``id`` column resets to 1 for every new contig, matching the
+    convention expected by instaGRAAL's pyramid-building code.
     """
     with open(output_path, "w") as fh:
         fh.write("id\tchrom\tstart_pos\tend_pos\tsize\tgc_content\n")
-        for i, row in enumerate(bins.itertuples(index=False), start=1):
-            size = row.end - row.start
-            fh.write(f"{i}\t{row.chrom}\t{row.start}\t{row.end}\t{size}\t{row.gc_content}\n")
+        for chrom, grp in bins.groupby("chrom", sort=False):
+            for i, row in enumerate(grp.itertuples(index=False), start=1):
+                size = row.end - row.start
+                fh.write(f"{i}\t{row.chrom}\t{row.start}\t{row.end}\t{size}\t{row.gc_content}\n")
 
 
 def _write_info_contigs(bins: pd.DataFrame, fasta_records: dict[str, str], output_path: pathlib.Path) -> None:
