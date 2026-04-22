@@ -125,8 +125,8 @@ def _build_bins_with_gc(bins: pd.DataFrame, fasta_records: dict[str, str]) -> pd
         Original DataFrame with an additional ``gc_content`` column.
     """
     gc_values = []
-    for _, row in bins.iterrows():
-        seq = fasta_records[row["chrom"]][row["start"] : row["end"]]
+    for row in bins.itertuples(index=False):
+        seq = fasta_records[row.chrom][row.start : row.end]
         gc_values.append(_gc_content(seq))
     bins = bins.copy()
     bins["gc_content"] = gc_values
