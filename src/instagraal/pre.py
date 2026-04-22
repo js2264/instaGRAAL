@@ -25,10 +25,9 @@ import Bio.Restriction as biorst
 import Bio.Seq as bioseq
 import click
 import cooler
-import cooler.util as cu
 import numpy as np
 import pandas as pd
-import pyfaidx
+from Bio import SeqIO
 
 
 # ---------------------------------------------------------------------------
@@ -36,12 +35,18 @@ import pyfaidx
 # ---------------------------------------------------------------------------
 
 
-def _parse_fasta(fasta_path: pathlib.Path) -> pyfaidx.Fasta:
-    """Open a FASTA file with pyfaidx (handles plain and .gz)."""
-    return pyfaidx.Fasta(str(fasta_path), rebuild=False)
+def _parse_fasta(fasta_path: pathlib.Path) -> dict[str, str]:
+    """Load a FASTA file into a dict mapping contig name → sequence string.
+
+    Handles both plain (``.fa``, ``.fasta``) and gzip-compressed
+    (``.fa.gz``, ``.fasta.gz``) files transparently.
+    """
+    opener = gzip.open if str(fasta_path).endswith(".gz") else open
+    with opener(fasta_path, "rt") as fh:
+        return {rec.id: str(rec.seq) for rec in SeqIO.parse(fh, "fasta")}
 
 
-def _multi_enzyme_digest(fasta_records: pyfaidx.Fasta, enzymes: list[str]) -> pd.DataFrame:
+def _multi_enzyme_digest(fasta_records: dict[str, str], enzymes: list[str]) -> pd.DataFrame:
     """Digest a genome with one or more restriction enzymes.
 
     Cut sites from all enzymes are merged, deduplicated and sorted before
@@ -51,7 +56,7 @@ def _multi_enzyme_digest(fasta_records: pyfaidx.Fasta, enzymes: list[str]) -> pd
     Parameters
     ----------
     fasta_records:
-        Open pyfaidx.Fasta handle.
+        Dict mapping contig name to sequence string.
     enzymes:
         List of restriction enzyme names recognised by Biopython (e.g.
         ``["DpnII", "HinfI"]``).
@@ -70,8 +75,8 @@ def _multi_enzyme_digest(fasta_records: pyfaidx.Fasta, enzymes: list[str]) -> pd
             raise click.BadParameter(f"Unknown restriction enzyme: {name!r}")
 
     frames = []
-    for chrom in fasta_records.keys():
-        seq = bioseq.Seq(str(fasta_records[chrom]))
+    for chrom, chrom_seq in fasta_records.items():
+        seq = bioseq.Seq(chrom_seq)
         # Collect cuts from every enzyme (1-based positions from biopython)
         all_cuts = set()
         for finder in cut_finders:
@@ -104,7 +109,7 @@ def _gc_content(seq: str) -> float:
     return gc / len(seq_upper)
 
 
-def _build_bins_with_gc(bins: pd.DataFrame, fasta_records: pyfaidx.Fasta) -> pd.DataFrame:
+def _build_bins_with_gc(bins: pd.DataFrame, fasta_records: dict[str, str]) -> pd.DataFrame:
     """Attach a ``gc_content`` column to a bins DataFrame.
 
     Parameters
@@ -112,7 +117,7 @@ def _build_bins_with_gc(bins: pd.DataFrame, fasta_records: pyfaidx.Fasta) -> pd.
     bins:
         DataFrame with ``chrom``, ``start``, ``end`` columns.
     fasta_records:
-        Open pyfaidx.Fasta handle for the same genome.
+        Dict mapping contig name to sequence string.
 
     Returns
     -------
@@ -121,7 +126,7 @@ def _build_bins_with_gc(bins: pd.DataFrame, fasta_records: pyfaidx.Fasta) -> pd.
     """
     gc_values = []
     for _, row in bins.iterrows():
-        seq = str(fasta_records[row["chrom"]][row["start"] : row["end"]])
+        seq = fasta_records[row["chrom"]][row["start"] : row["end"]]
         gc_values.append(_gc_content(seq))
     bins = bins.copy()
     bins["gc_content"] = gc_values
@@ -179,7 +184,7 @@ def _pairs_to_pixels(pairs_path: pathlib.Path, bins: pd.DataFrame) -> tuple[pd.D
 
     # Detect columns from header
     col1_idx, col2_idx, col3_idx, col4_idx = 1, 2, 3, 4  # defaults
-    opener = gzip.open if str(pairs_path).endswith(".gz") else open
+    opener = gzip.open if str(pairs_path).endswith((".gz", ".bgz")) else open
 
     counts: dict[tuple[int, int], int] = {}
     total = 0
@@ -251,7 +256,7 @@ def _write_fragments_list(bins: pd.DataFrame, output_path: pathlib.Path) -> None
             fh.write(f"{i}\t{row.chrom}\t{row.start}\t{row.end}\t{size}\t{row.gc_content}\n")
 
 
-def _write_info_contigs(bins: pd.DataFrame, fasta_records: pyfaidx.Fasta, output_path: pathlib.Path) -> None:
+def _write_info_contigs(bins: pd.DataFrame, fasta_records: dict[str, str], output_path: pathlib.Path) -> None:
     """Write ``info_contigs.txt``.
 
     Format (tab-separated)::
@@ -330,24 +335,25 @@ def run_pre(
 
     # Write .cool
     if cool_name is None:
-        cool_name = pathlib.Path(pairs.name).with_suffix("").with_suffix("").name
+        # Strip up to two extensions to handle .pairs and .pairs.gz
+        stem = pairs.name
+        for _ in range(2):
+            stem, ext = pathlib.Path(stem).stem, pathlib.Path(stem).suffix
+            if not ext:
+                break
+        cool_name = stem
     cool_path = output_dir / f"{cool_name}.cool"
     click.echo(f"[5/5] Writing outputs to {output_dir}")
     click.echo(f"      → {cool_path.name}")
 
     # Build chromsizes Series in contig order
-    chrom_order = list(dict.fromkeys(bins["chrom"]))  # preserve insertion order
-    chromsizes = pd.Series(
-        {chrom: len(fasta_records[chrom]) for chrom in chrom_order},
-        name="length",
-    )
     bins_for_cooler = bins[["chrom", "start", "end"]].copy()
     cooler.create_cooler(
         str(cool_path),
         bins=bins_for_cooler,
         pixels=pixels,
         dtypes={"count": np.int32},
-        assembly=fasta.stem,
+        assembly=fasta.stem.removesuffix(".fa").removesuffix(".fasta"),
         ordered=True,
         symmetric_upper=True,
     )
