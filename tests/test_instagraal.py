@@ -22,11 +22,11 @@ from instagraal.pre import main as pre_main
 REPO_ROOT = pathlib.Path(__file__).parent.parent
 EXAMPLE_DATA = REPO_ROOT / "example" / "data"
 
-REF_FASTA = EXAMPLE_DATA / "metator_00056_00034.fa.gz"
-REF_PAIRS = EXAMPLE_DATA / "valid_idx_pcrfree.pairs.gz"
-REF_INFO_CONTIGS = EXAMPLE_DATA / "info_contigs.txt"
-REF_FRAGMENTS_LIST = EXAMPLE_DATA / "fragments_list.txt"
-REF_ABS_CONTACTS = EXAMPLE_DATA / "abs_fragments_contacts_weighted.txt"
+REF_FASTA = EXAMPLE_DATA / "pre" / "metator_00056_00034.fa.gz"
+REF_PAIRS = EXAMPLE_DATA / "pre" / "valid_idx_pcrfree.pairs.gz"
+REF_INFO_CONTIGS = EXAMPLE_DATA / "main" / "info_contigs.txt"
+REF_FRAGMENTS_LIST = EXAMPLE_DATA / "main" / "fragments_list.txt"
+REF_ABS_CONTACTS = EXAMPLE_DATA / "main" / "abs_fragments_contacts_weighted.txt"
 
 ENZYMES = "DpnII,HinfI"
 
