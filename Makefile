@@ -69,4 +69,4 @@ stats: $(FASTA) $(POLISH_SENTINEL)
 	instagraal-stats $(FASTA) $(POLISH_SENTINEL) --labels "Input,Polished"
 
 clean:
-	rm -rf $(HIC_DIR) $(OUT_BASE) $(POLISH_DIR)
+	rm -rf $(HIC_DIR) $(OUT_BASE) $(POLISH_DIR) instagraal.log sparsity_*.pdf
