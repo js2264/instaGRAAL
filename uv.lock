@@ -3480,7 +3480,7 @@ test = [
 requires-dist = [
     { name = "autodoc", marker = "extra == 'docs'" },
     { name = "autodocsumm", marker = "extra == 'docs'" },
-    { name = "biopython" },
+    { name = "biopython", specifier = ">=1.78" },
     { name = "black", marker = "extra == 'dev'" },
     { name = "click" },
     { name = "codepy" },
