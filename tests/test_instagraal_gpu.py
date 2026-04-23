@@ -342,9 +342,13 @@ def test_gpu_matrix_pngs_valid(mcmc_out):
 
 
 @pytest.fixture(scope="session")
-def pyramid_dir(instagraal_run, pre_output_dir):
-    """Return the pyramids directory built inside the HiC folder during the GPU run."""
-    d = pre_output_dir / "pyramids"
+def pyramid_dir(mcmc_out):
+    """Return the pyramids directory built in the base output dir during the GPU run.
+
+    Pyramids are written at <output_dir>/pyramids/, where <output_dir> is two
+    levels above mcmc_out (<output_dir>/<hic_name>/test_mcmc_<level>/).
+    """
+    d = mcmc_out.parent.parent / "pyramids"
     if not d.exists():
         pytest.skip(f"Pyramid dir not found: {d}")
     return d
