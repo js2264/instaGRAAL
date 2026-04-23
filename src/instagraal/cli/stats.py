@@ -25,7 +25,7 @@ from ..version import __version__ as VERSION_NUMBER
     "-l",
     "--labels",
     default=None,
-    help=("Comma-separated labels to use as column headers (one per file). " "Defaults to the file basenames."),
+    help="Comma-separated labels to use as column headers (one per file). Defaults to the file basenames.",
 )
 def main(
     fasta_files: tuple[pathlib.Path, ...],
@@ -52,7 +52,7 @@ def main(
         label_list = [lb.strip() for lb in labels.split(",")]
         if len(label_list) != len(fasta_files):
             raise click.UsageError(
-                f"--labels supplied {len(label_list)} label(s) but " f"{len(fasta_files)} file(s) were given."
+                f"--labels supplied {len(label_list)} label(s) but {len(fasta_files)} file(s) were given."
             )
     else:
         label_list = [f.name for f in fasta_files]

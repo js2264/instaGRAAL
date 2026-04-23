@@ -117,7 +117,7 @@ class TestNxLxMetrics:
         # cumulative:  500, 900 → N50 = 400 (first contig bringing cumsum ≥ 750)
         fa = _write_fasta(
             tmp_path,
-            {"a": "A" * 100, "b": "B" * 200, "c": "C" * 300, "d": "D" * 400, "e": "E" * 500},
+            {"a": "A" * 100, "b": "G" * 200, "c": "C" * 300, "d": "T" * 400, "e": "A" * 500},
         )
         stats = compute_assembly_stats(str(fa))
         assert stats["n50"] == 400
