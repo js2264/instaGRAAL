@@ -52,14 +52,14 @@ def test_output_files_exist(pre_output_dir):
 
 
 def test_pre_logs_assembly_stats(tmp_path_factory):
-    """instagraal-pre calls log_assembly_stats on the input FASTA."""
+    """instagraal-pre calls print_assembly_stats on the input FASTA."""
     from click.testing import CliRunner
 
     from instagraal.cli.pre import main as pre_main
 
     out = tmp_path_factory.mktemp("pre_stats_check")
     runner = CliRunner()
-    with patch("instagraal.cli.pre.log_assembly_stats") as mock_stats:
+    with patch("instagraal.cli.pre.print_assembly_stats") as mock_stats:
         result = runner.invoke(
             pre_main,
             [

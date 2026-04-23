@@ -560,11 +560,11 @@ def test_cli_polishing_mode_requires_fasta(cli_runner, example_info_frags, tmp_p
 
 
 def test_cli_fasta_mode_prints_assembly_stats(cli_runner, example_info_frags, example_ref_fasta, tmp_path):
-    """'fasta' mode calls log_assembly_stats on the produced FASTA."""
+    """'fasta' mode calls print_assembly_stats on the produced FASTA."""
     from unittest.mock import patch
 
     out_dir = tmp_path / "out"
-    with patch("instagraal.cli.polish.log_assembly_stats") as mock_stats:
+    with patch("instagraal.cli.polish.print_assembly_stats") as mock_stats:
         result = cli_runner.invoke(
             polish_main,
             ["-m", "fasta", "-i", example_info_frags, "-f", example_ref_fasta, "-o", str(out_dir)],
@@ -580,11 +580,11 @@ def test_cli_fasta_mode_prints_assembly_stats(cli_runner, example_info_frags, ex
 
 
 def test_cli_polishing_mode_prints_assembly_stats(cli_runner, example_info_frags, example_ref_fasta, tmp_path):
-    """'polishing' mode calls log_assembly_stats on the produced FASTA."""
+    """'polishing' mode calls print_assembly_stats on the produced FASTA."""
     from unittest.mock import patch
 
     out_dir = tmp_path / "out"
-    with patch("instagraal.cli.polish.log_assembly_stats") as mock_stats:
+    with patch("instagraal.cli.polish.print_assembly_stats") as mock_stats:
         result = cli_runner.invoke(
             polish_main,
             ["-m", "polishing", "-i", example_info_frags, "-f", example_ref_fasta, "-o", str(out_dir)],

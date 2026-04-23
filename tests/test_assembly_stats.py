@@ -17,6 +17,7 @@ from instagraal.assembly_stats import (
     format_assembly_stats,
     format_comparison_table,
     log_assembly_stats,
+    print_assembly_stats,
 )
 
 # ---------------------------------------------------------------------------
@@ -246,8 +247,22 @@ class TestLogAssemblyStats:
 
 
 # ---------------------------------------------------------------------------
-# format_comparison_table
+# print_assembly_stats – always writes to stdout
 # ---------------------------------------------------------------------------
+
+
+class TestPrintAssemblyStats:
+    def test_smoke(self, tmp_path):
+        fa = _write_fasta(tmp_path, {"a": "ACGT" * 50})
+        print_assembly_stats(str(fa), label="Test run")  # must not raise
+
+    def test_output_goes_to_stdout(self, tmp_path, capsys):
+        fa = _write_fasta(tmp_path, {"a": "A" * 100, "b": "G" * 200})
+        print_assembly_stats(str(fa), label="My label")
+        captured = capsys.readouterr()
+        assert "N50" in captured.out
+        assert "My label" in captured.out
+        assert captured.err == ""
 
 
 class TestFormatComparisonTable:

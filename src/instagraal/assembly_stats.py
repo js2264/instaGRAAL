@@ -219,6 +219,26 @@ def format_comparison_table(results: dict) -> str:
     return "\n".join(rows)
 
 
+def print_assembly_stats(fasta_path: str, label: str | None = None) -> None:
+    """Compute and print assembly statistics for *fasta_path* to stdout.
+
+    Always prints regardless of logging configuration – intended for use in
+    CLI commands that should unconditionally display stats to the user.
+
+    Parameters
+    ----------
+    fasta_path:
+        Path to a plain or gzip-compressed FASTA file.
+    label:
+        Optional heading for the statistics block.
+    """
+    try:
+        stats = compute_assembly_stats(fasta_path)
+        print(format_assembly_stats(stats, label=label))
+    except Exception as exc:  # pragma: no cover
+        print(f"Warning: could not compute assembly stats for {fasta_path}: {exc}")
+
+
 def log_assembly_stats(fasta_path: str, label: str | None = None) -> None:
     """Compute and log assembly statistics for *fasta_path* at INFO level.
 

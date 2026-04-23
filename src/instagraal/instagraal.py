@@ -599,9 +599,9 @@ def run_instagraal(
             p2.simple_start(n_cycles=cycles, n_neighbours=neighborhood, bomb=bomb)
 
     if not pyramid_only:
-        from .assembly_stats import log_assembly_stats
+        from .assembly_stats import print_assembly_stats
 
-        log_assembly_stats(p2.simulation.new_fasta, label="Scaffolded assembly")
+        print_assembly_stats(p2.simulation.new_fasta, label="Scaffolded assembly")
 
     if save_pickle:
         try:

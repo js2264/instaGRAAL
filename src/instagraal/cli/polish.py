@@ -4,7 +4,7 @@ import pathlib
 
 import click
 
-from ..assembly_stats import log_assembly_stats
+from ..assembly_stats import print_assembly_stats
 from ..parse_info_frags import (
     DEFAULT_CRITERION,
     DEFAULT_CRITERION_2,
@@ -127,7 +127,7 @@ def main(
             junction=junction,
             output=genome_file,
         )
-        log_assembly_stats(genome_file, label="Assembly (fasta mode)")
+        print_assembly_stats(genome_file, label="Assembly (fasta mode)")
 
     elif "singleton" in mode:
         new_scaffolds = remove_spurious_insertions(scaffolds)
@@ -170,7 +170,7 @@ def main(
             output=genome_file,
             junction=junction,
         )
-        log_assembly_stats(genome_file, label="Assembly (polishing mode)")
+        print_assembly_stats(genome_file, label="Assembly (polishing mode)")
 
     elif mode == "plot":
         plot_info_frags(scaffolds)
