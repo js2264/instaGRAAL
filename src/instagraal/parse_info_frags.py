@@ -12,13 +12,12 @@ assemblies and correct potential missassemblies.
 
 """
 
-import argparse
 import copy
 import itertools
 import operator
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
-from Bio.Seq import Seq, IUPAC
+from Bio.Seq import Seq
 from matplotlib import pyplot as plt
 
 # Defaults:
@@ -30,7 +29,7 @@ from matplotlib import pyplot as plt
 DEFAULT_MIN_SCAFFOLD_SIZE = 0
 DEFAULT_NEW_INFO_FRAGS_NAME = "new_info_frags.txt"
 DEFAULT_NEW_GENOME_NAME = "new_genome.fa"
-DEFAULT_JUNCTION_SEQUENCE = Seq("NNNNNN", IUPAC.ambiguous_dna)
+DEFAULT_JUNCTION_SEQUENCE = Seq("NNNNNN")
 DEFAULT_CRITERION = "colinear"
 DEFAULT_CRITERION_2 = "blocks"
 
@@ -644,7 +643,7 @@ def write_fasta(
                 if junction and previous_contig not in {None, init_contig}:
                     error_was_raised = False
                     try:
-                        extra_seq = Seq(junction, IUPAC.ambiguous_dna)
+                        extra_seq = Seq(junction)
                         current_seq = current_seq + extra_seq
                     except TypeError:
                         if not error_was_raised:
@@ -812,157 +811,7 @@ def is_block(bin_list):
     return id_set == set(range(start_id, end_id + 1))
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Process 3C bin " "formalized scaffolds."
-    )
-
-    parser.add_argument("-m", "--mode", help="Process mode", required=True)
-
-    parser.add_argument(
-        "-i",
-        "--input",
-        type=str,
-        help="Input info_frags.txt to process",
-        required=True,
-    )
-
-    parser.add_argument(
-        "-f",
-        "--fasta",
-        type=str,
-        help="Reference FASTA file to generate "
-        "new genome with info_frags.txt",
-    )
-
-    parser.add_argument("-o", "--output", help="Output file to generate")
-
-    parser.add_argument(
-        "-c", "--criterion", type=str, help="Block criterion stringency"
-    )
-
-    parser.add_argument(
-        "-s",
-        "--min-scaffold-size",
-        type=int,
-        help="Minimum scaffold size in bins",
-        default=DEFAULT_MIN_SCAFFOLD_SIZE,
-    )
-
-    parser.add_argument(
-        "-j", "--junction", type=str, help="Junction sequence", default=""
-    )
-
-    args = parser.parse_args()
-
-    info_frags = args.input
-    min_size = args.min_scaffold_size
-    scaffolds = {
-        name: scaffold
-        for (name, scaffold) in parse_info_frags(info_frags).items()
-        if len(scaffold) > min_size
-    }
-
-    if args.mode == "fasta":
-        init_fasta = args.fasta
-        output_file = args.output
-        junction = args.junction
-
-        if init_fasta is None:
-            print(
-                "Error! An initial FASTA file must be provided to write "
-                "the bins into sequences."
-            )
-
-        write_fasta(
-            init_fasta=init_fasta,
-            info_frags=info_frags,
-            junction=junction,
-            output=output_file,
-        )
-
-    elif "singleton" in args.mode:
-        output_file = args.output
-        new_scaffolds = remove_spurious_insertions(scaffolds)
-        write_info_frags(new_scaffolds, output=output_file)
-
-    elif args.mode == "inversion":
-        output_file = args.output or DEFAULT_NEW_INFO_FRAGS_NAME
-        criterion = args.criterion or DEFAULT_CRITERION
-
-        new_scaffolds = correct_spurious_inversions(
-            scaffolds=scaffolds, criterion=criterion
-        )
-
-        write_info_frags(new_scaffolds, output=output_file)
-
-    elif args.mode == "inversion2":
-        output_file = args.output or DEFAULT_NEW_INFO_FRAGS_NAME
-        criterion = args.criterion or DEFAULT_CRITERION_2
-
-        new_scaffolds = reorient_consecutive_blocks(
-            scaffolds=scaffolds, mode=criterion
-        )
-
-        write_info_frags(new_scaffolds, output=output_file)
-
-    elif "rearrange" in args.mode:
-        output_file = args.output or DEFAULT_NEW_INFO_FRAGS_NAME
-
-        new_scaffolds = rearrange_intra_scaffolds(scaffolds=scaffolds)
-
-        write_info_frags(new_scaffolds, output=output_file)
-
-    elif "reincorporation" in args.mode:
-        init_fasta = args.fasta
-        output_file = args.output or DEFAULT_NEW_INFO_FRAGS_NAME
-
-        if init_fasta is None:
-            print(
-                "Error! An initial FASTA file must be provided"
-                " for bin reincorporation."
-            )
-
-        removed = find_lost_dna(init_fasta=init_fasta, scaffolds=scaffolds)
-
-        new_scaffolds = integrate_lost_dna(
-            scaffolds=scaffolds, lost_dna_positions=removed
-        )
-
-        write_info_frags(new_scaffolds, output=output_file)
-
-    elif "polishing" in args.mode:
-        init_fasta = args.fasta
-        output_file = args.output
-        junction = args.junction
-
-        arranged_scaffolds = rearrange_intra_scaffolds(scaffolds=scaffolds)
-        reoriented_scaffolds = reorient_consecutive_blocks(arranged_scaffolds)
-        removed = find_lost_dna(
-            init_fasta=init_fasta, scaffolds=reoriented_scaffolds
-        )
-        new_scaffolds = integrate_lost_dna(
-            scaffolds=reoriented_scaffolds, lost_dna_positions=removed
-        )
-
-        write_info_frags(new_scaffolds, output=DEFAULT_NEW_INFO_FRAGS_NAME)
-        write_fasta(
-            init_fasta=init_fasta,
-            info_frags=DEFAULT_NEW_INFO_FRAGS_NAME,
-            output=output_file,
-            junction=junction,
-        )
-
-    elif args.mode == "plot":
-        plot_info_frags(scaffolds)
-
-    else:
-        print(
-            "Wrong mode. Available modes are: "
-            "fasta, singletons, inversions, inversion2, rearrange, "
-            "reincorporations, polishing, plot"
-        )
-
-
 if __name__ == "__main__":
+    from .cli.polish import main
+
     main()

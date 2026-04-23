@@ -18,7 +18,6 @@ The module covers two goals:
 import math
 import pathlib
 import struct
-import sys
 
 import numpy as np
 import pandas as pd
@@ -87,25 +86,26 @@ def instagraal_run(pre_output_dir):
     # simu_single.py constructs a predictable sub-folder inside OUTPUT_DIR.
     hic_folder_name = pre_output_dir.name
 
-    original_argv = sys.argv[:]
-    sys.argv = [
-        "instagraal",
-        str(pre_output_dir),
-        str(REF_FASTA),
-        str(OUTPUT_DIR),
-        "--cycles",
-        str(MCMC_CYCLES),
-        "--level",
-        str(MCMC_LEVEL),
-        "--bomb",
-        "--save-matrix",
-    ]
-    try:
-        from instagraal.instagraal import main  # noqa: PLC0415
+    from click.testing import CliRunner  # noqa: PLC0415
+    from instagraal.cli.main import main  # noqa: PLC0415
 
-        main()
-    finally:
-        sys.argv = original_argv
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        [
+            str(pre_output_dir),
+            str(REF_FASTA),
+            str(OUTPUT_DIR),
+            "--cycles",
+            str(MCMC_CYCLES),
+            "--level",
+            str(MCMC_LEVEL),
+            "--bomb",
+            "--save-matrix",
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, f"instagraal failed (exit {result.exit_code}):\n{result.output}"
 
     # Output follows simu_single.py naming: {output}/{hic_name}/test_mcmc_{lvl}
     return OUTPUT_DIR / hic_folder_name / f"test_mcmc_{MCMC_LEVEL}"
@@ -582,9 +582,7 @@ def test_rippe_estimate_max_dist_intra():
 
 
 # ---------------------------------------------------------------------------
-# parse_info_frags  (lightweight subset – full import fails on modern
-# Biopython which removed Bio.Seq.IUPAC; test the parsers that don't
-# trigger that import path)
+# parse_info_frags
 # ---------------------------------------------------------------------------
 
 

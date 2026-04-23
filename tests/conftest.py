@@ -15,7 +15,7 @@ import matplotlib
 import pytest
 from click.testing import CliRunner
 
-from instagraal.pre import main as pre_main
+from instagraal.cli.pre import main as pre_main
 
 # Force a non-interactive backend before any test file imports matplotlib.pyplot
 matplotlib.use("Agg")
