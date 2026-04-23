@@ -51,9 +51,8 @@ REF_FASTA = TEST_DATA / "yeast.contigs.fa.gz"
 
 MCMC_LEVEL = 4
 MCMC_CYCLES = 3
-# TODO: calibrate MCMC_FRAGS (n_new_frags at level 4) after first run with yeast data.
-# Set to None until calibrated; tests that require an exact row count are skipped below.
-MCMC_FRAGS = None
+# n_new_frags at pyramid level 4 for yeast data (shape sub mat = 727x727)
+MCMC_FRAGS = 727
 MCMC_N_ITERS = MCMC_CYCLES * MCMC_FRAGS if MCMC_FRAGS is not None else None
 
 # Expected number of large (>100 kb) contigs after scaffolding.
@@ -247,8 +246,6 @@ def test_gpu_save_simu_step_file_count(mcmc_out):
 
 
 def test_gpu_save_simu_step_row_count(mcmc_out):
-    if MCMC_FRAGS is None:
-        pytest.skip("MCMC_FRAGS not calibrated for yeast data yet")
     for i in range(MCMC_CYCLES):
         path = mcmc_out / f"save_simu_step_{i}.txt"
         rows = path.read_text().splitlines()
@@ -269,8 +266,6 @@ def test_gpu_save_simu_step_format(mcmc_out):
 
 
 def test_gpu_list_likelihood_length(mcmc_out):
-    if MCMC_N_ITERS is None:
-        pytest.skip("MCMC_FRAGS not calibrated for yeast data yet")
     vals = [v for v in (mcmc_out / "list_likelihood.txt").read_text().splitlines() if v.strip()]
     assert len(vals) == MCMC_N_ITERS
 
@@ -283,24 +278,17 @@ def test_gpu_list_likelihood_finite(mcmc_out):
 
 def test_gpu_list_n_contigs_length_and_positive(mcmc_out):
     vals = [v for v in (mcmc_out / "list_n_contigs.txt").read_text().splitlines() if v.strip()]
-    if MCMC_N_ITERS is not None:
-        assert len(vals) == MCMC_N_ITERS
-    else:
-        assert len(vals) > 0  # TODO: tighten once MCMC_FRAGS is calibrated
+    assert len(vals) == MCMC_N_ITERS
     for v in vals:
         assert int(v) > 0
 
 
 def test_gpu_list_mean_len_length(mcmc_out):
-    if MCMC_N_ITERS is None:
-        pytest.skip("MCMC_FRAGS not calibrated for yeast data yet")
     vals = [v for v in (mcmc_out / "list_mean_len.txt").read_text().splitlines() if v.strip()]
     assert len(vals) == MCMC_N_ITERS
 
 
 def test_gpu_list_dist_init_genome_length(mcmc_out):
-    if MCMC_N_ITERS is None:
-        pytest.skip("MCMC_FRAGS not calibrated for yeast data yet")
     vals = [v for v in (mcmc_out / "list_dist_init_genome.txt").read_text().splitlines() if v.strip()]
     assert len(vals) == MCMC_N_ITERS
 
@@ -320,14 +308,10 @@ def test_gpu_mutations_columns(mutations_df):
 
 
 def test_gpu_mutations_row_count(mutations_df):
-    if MCMC_N_ITERS is None:
-        pytest.skip("MCMC_FRAGS not calibrated for yeast data yet")
     assert len(mutations_df) == MCMC_N_ITERS
 
 
 def test_gpu_mutations_fragment_ids_in_range(mutations_df):
-    if MCMC_FRAGS is None:
-        pytest.skip("MCMC_FRAGS not calibrated for yeast data yet")
     assert mutations_df["id_fA"].between(0, MCMC_FRAGS - 1).all()
     assert mutations_df["id_fB"].between(0, MCMC_FRAGS - 1).all()
 
