@@ -122,27 +122,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for LABEL in "${{ steps.launch.outputs.label-cuda13 }}"; do
-            echo "Waiting for runner: $LABEL"
-            STATUS=""
-            for i in $(seq 1 36); do
-              STATUS=$(curl -fsSL \
-                -H "Authorization: Bearer $GITHUB_TOKEN" \
-                -H "Accept: application/vnd.github+json" \
-                "https://api.github.com/repos/${{ github.repository }}/actions/runners" \
-                | jq -r ".runners[] | select(.name == \"$LABEL\") | .status")
-              if [ "$STATUS" = "online" ]; then
-                echo "  $LABEL is online."
-                break
-              fi
-              echo "  Attempt $i/36 - not online yet, retrying in 10s..."
-              sleep 10
-            done
-            if [ "$STATUS" != "online" ]; then
-              echo "ERROR: $LABEL did not come online within 6 minutes." >&2
-              exit 1
-            fi
-          done
+          echo "Waiting for runners to register with GitHub..."
+          sleep 30  # Initial delay to allow pods to boot and start the registration process.
 
   # ---------------------------------------------------------------------------
   # Run the full test suite on each pod.
