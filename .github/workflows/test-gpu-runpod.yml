@@ -43,8 +43,8 @@ jobs:
     name: Start RunPod GPU pods
     runs-on: ubuntu-latest
     outputs:
-      label-cuda13:  ${{ steps.launch.outputs.label-cuda13 }}
-      pod-id-cuda13: ${{ steps.launch.outputs.pod-id-cuda13 }}
+      label-cuda12:  ${{ steps.launch.outputs.label-cuda12 }}
+      pod-id-cuda12: ${{ steps.launch.outputs.pod-id-cuda12 }}
     steps:
       - name: Install RunPod SDK
         run: pip install runpod -q
@@ -68,7 +68,7 @@ jobs:
               "set -euo pipefail\n"
               "export DEBIAN_FRONTEND=noninteractive\n"
               "apt-get update -qq\n"
-              "apt-get install -y -qq --no-install-recommends curl ca-certificates tar git libicu74 jq\n"
+              "apt-get install -y -qq --no-install-recommends curl ca-certificates tar git libicu-dev jq\n"
               "rm -rf /var/lib/apt/lists/*\n"
               "id -u runner &>/dev/null || useradd -m -s /bin/bash runner\n"
               "RUNNER_DIR=/opt/actions-runner\n"
@@ -93,7 +93,7 @@ jobs:
           startup_b64 = base64.b64encode(startup.encode()).decode()
 
           cuda_versions = [
-              ("cuda13", "nvidia/cuda:13.2.1-devel-ubuntu24.04"),
+              ("cuda12", "nvidia/cuda:12.4.1-devel-ubuntu22.04"),
           ]
 
           with open(os.environ["GITHUB_OUTPUT"], "a") as out:
@@ -135,8 +135,8 @@ jobs:
     strategy:
       matrix:
         include:
-          - cuda-version: "13"
-            runner-label: ${{ needs.start-runners.outputs.label-cuda13 }}
+          - cuda-version: "12"
+            runner-label: ${{ needs.start-runners.outputs.label-cuda12 }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -183,12 +183,12 @@ jobs:
       - name: Terminate pods
         env:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
-          POD_ID_CUDA13:  ${{ needs.start-runners.outputs.pod-id-cuda13 }}
+          POD_ID_CUDA12:  ${{ needs.start-runners.outputs.pod-id-cuda12 }}
         run: |
           python3 - << 'SCRIPTEOF'
           import runpod, os
           runpod.api_key = os.environ["RUNPOD_API_KEY"]
-          for key in ("CUDA13",):
+          for key in ("CUDA12",):
               pod_id = os.environ.get(f"POD_ID_{key}", "").strip()
               if pod_id:
                   runpod.terminate_pod(pod_id)
