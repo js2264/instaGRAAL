@@ -2871,7 +2871,7 @@ class sampler:
         matrix = hic_matrix[np.ix_(full_order_high, full_order_high)]
 
         fig, ax = plt.subplots(figsize=(14, 14))
-        ax.imshow(matrix, vmax=np.percentile(matrix, 99), interpolation="nearest", cmap="afmhotr")
+        ax.imshow(matrix, vmax=np.percentile(matrix, 99), interpolation="nearest")
         ax.axis("off")
         fig.savefig(filename, dpi=200, bbox_inches="tight")
         plt.close(fig)
