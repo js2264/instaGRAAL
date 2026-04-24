@@ -77,9 +77,11 @@ def _cmd_echo(cmd: list) -> None:
     click.echo("  $ " + " ".join(shlex.quote(str(a)) for a in cmd))
 
 
-def _run_cmd(cmd: list) -> None:
+def _run_cmd(cmd: list, _record: list | None = None) -> None:
     """Print then execute a CLI command, streaming its output to the console."""
     _cmd_echo(cmd)
+    if _record is not None:
+        _record.append(" ".join(shlex.quote(str(a)) for a in cmd))
     subprocess.run([str(a) for a in cmd], check=True)
 
 
@@ -116,8 +118,12 @@ def _run_test(
     device: int,
     level: int,
     cycles: int,
-) -> None:
-    """Execute the full instagraal pipeline on the test dataset."""
+) -> list[str]:
+    """Execute the full instagraal pipeline on the test dataset.
+
+    Returns a list of shell-quoted commands that were executed, for the recap.
+    """
+    ran_cmds: list[str] = []
     # Resolve CLI entry points from the same environment as this process.
     bin_dir = pathlib.Path(sys.executable).parent
 
@@ -145,7 +151,8 @@ def _run_test(
             ",".join(TEST_ENZYME),
             "--output-dir",
             pre_dir,
-        ]
+        ],
+        _record=ran_cmds,
     )
 
     # -- 4. instagraal (MCMC scaffolding) ------------------------------------
@@ -167,7 +174,8 @@ def _run_test(
             "--bomb",
             "--device",
             device,
-        ]
+        ],
+        _record=ran_cmds,
     )
 
     # instagraal writes: <output_folder>/<hic_folder_name>/test_mcmc_<level>/
@@ -191,7 +199,8 @@ def _run_test(
             fasta_path,
             "--output-dir",
             polish_dir,
-        ]
+        ],
+        _record=ran_cmds,
     )
     polished_fa = polish_dir / "polished_genome.fa"
 
@@ -204,8 +213,11 @@ def _run_test(
             polished_fa,
             "--labels",
             "Input assembly,Polished assembly",
-        ]
+        ],
+        _record=ran_cmds,
     )
+
+    return ran_cmds
 
 
 # ---------------------------------------------------------------------------
@@ -286,8 +298,11 @@ def main(
     click.echo(f"Working directory: {workdir}")
 
     try:
-        _run_test(workdir=workdir, device=device, level=level, cycles=cycles)
+        ran_cmds = _run_test(workdir=workdir, device=device, level=level, cycles=cycles)
         click.echo("\n[instagraal-test] ALL STEPS PASSED.")
+        click.echo("\nCommands executed (for reproducibility):")
+        for c in ran_cmds:
+            click.echo(f"  $ {c}")
     finally:
         if _tmp_dir is not None and not keep:
             shutil.rmtree(_tmp_dir, ignore_errors=True)
