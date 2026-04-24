@@ -2870,8 +2870,11 @@ class sampler:
         hic_matrix = self.sparse_matrix.toarray()
         matrix = hic_matrix[np.ix_(full_order_high, full_order_high)]
 
-        plt.imshow(matrix, vmax=np.percentile(matrix, 99))
-        plt.savefig(filename)
+        fig, ax = plt.subplots(figsize=(14, 14))
+        ax.imshow(matrix, vmax=np.percentile(matrix, 99), interpolation="nearest", cmap="afmhotr")
+        ax.axis("off")
+        fig.savefig(filename, dpi=200, bbox_inches="tight")
+        plt.close(fig)
         return full_order, dict_contig, full_order_high
 
     def genome_content(self):
