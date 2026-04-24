@@ -38,14 +38,26 @@ DEFAULT_TEST_LEVEL = 4
 def _check_gpu(device: int) -> None:
     """Verify that pycuda can initialise the requested CUDA device."""
     try:
+        import pycuda
+    except ImportError as exc:
+        raise click.ClickException(
+            "pycuda is not installed.  instagraal requires it along with a CUDA-capable GPU."
+        ) from exc
+    click.echo(f"  pycuda version: {pycuda.VERSION_TEXT}")
+    try:
         import pycuda.driver as cuda  # noqa: PLC0415
     except ImportError as exc:
-        raise click.ClickException("pycuda is not installed.  instagraal requires a CUDA-capable GPU.") from exc
+        raise click.ClickException(
+            "pycuda cannot import the driver module.  Check your pycuda installation and CUDA setup."
+        ) from exc
+    version = cuda.get_version()
+    click.echo(f"  Detected CUDA runtime version {version[0]}.{version[1]}.{version[2]}.")  # e.g. (11, 8)
 
     try:
         cuda.init()
     except Exception as exc:  # noqa: BLE001
         raise click.ClickException(f"CUDA initialisation failed: {exc}") from exc
+    click.echo("  Cuda successfully initialised")
 
     n_devices = cuda.Device.count()
     if n_devices == 0:
