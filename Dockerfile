@@ -8,13 +8,17 @@ LABEL Name=instagraal Version=0.1.6
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+COPY . /tmp/instaGRAAL
+
 RUN apt-get update \
   && apt-get upgrade -y \
   && apt-get install -y --no-install-recommends \
   gcc \
   g++ \
-  python3 \
+  python3-full \
   python3-dev \
+  python3-pip \
+  pipx \
   libjpeg-dev \
   zlib1g-dev \
   hdf5-tools \
@@ -22,13 +26,8 @@ RUN apt-get update \
   ca-certificates \
   && apt-get clean autoclean \
   && apt-get autoremove -y \
-  && rm -rf /var/lib/apt/lists/*
-
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-
-# Install instagraal and all its dependencies via uv
-COPY . /tmp/instaGRAAL
-RUN uv pip install --system /tmp/instaGRAAL && rm -rf /tmp/instaGRAAL
+  && rm -rf /var/lib/apt/lists/* \
+  && pipx install /tmp/instaGRAAL[dev] \
+  && rm -rf /tmp/instaGRAAL
 
 WORKDIR /work

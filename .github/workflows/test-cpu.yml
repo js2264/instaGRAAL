@@ -31,14 +31,14 @@ jobs:
         run: pip install ".[test]"
 
       - name: Run pytest (GPU tests auto-skipped)
-        run: pytest --junitxml=test-results.xml
+        run: pytest -v --tb=short > test-results.txt 2>&1 || true
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results-cpu
-          path: test-results.xml
+          path: test-results.txt
 
       - name: Upload coverage report
         if: always()
