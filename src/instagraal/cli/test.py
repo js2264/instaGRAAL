@@ -97,25 +97,54 @@ def _run_cmd(cmd: list, _record: list | None = None) -> None:
     subprocess.run([str(a) for a in cmd], check=True)
 
 
-def _fetch_test_data(workdir: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
-    """Download ``TEST_FASTA`` and ``TEST_PAIRS`` from Zenodo into *workdir*."""
-    fasta_path = workdir / TEST_FASTA
-    pairs_path = workdir / TEST_PAIRS
+def _fetch_test_data(
+    workdir: pathlib.Path,
+    fasta_path_override: pathlib.Path | None = None,
+    pairs_path_override: pathlib.Path | None = None,
+) -> tuple[pathlib.Path, pathlib.Path]:
+    """Download or locate ``TEST_FASTA`` and ``TEST_PAIRS`` from Zenodo into *workdir*.
 
-    for filename, dest in [(TEST_FASTA, fasta_path), (TEST_PAIRS, pairs_path)]:
-        if dest.exists():
-            click.echo(f"  {filename} already present, skipping download.")
-            continue
-        url = f"{ZENODO_BASE_URL}/{filename}"
-        click.echo(f"  Fetching {filename} …")
+    If *fasta_path_override* or *pairs_path_override* are provided, use them instead of downloading.
+    Otherwise, download from Zenodo (or reuse if already present in *workdir*).
+    """
+    # Use overrides if provided, otherwise default to workdir
+    fasta_path = fasta_path_override if fasta_path_override else (workdir / TEST_FASTA)
+    pairs_path = pairs_path_override if pairs_path_override else (workdir / TEST_PAIRS)
+
+    # Validate that provided files exist
+    if fasta_path_override and not fasta_path.exists():
+        raise click.ClickException(f"FASTA file not found: {fasta_path}")
+    if pairs_path_override and not pairs_path.exists():
+        raise click.ClickException(f"Pairs file not found: {pairs_path}")
+
+    # Download files only if not provided and not already present
+    if not fasta_path_override and not fasta_path.exists():
+        url = f"{ZENODO_BASE_URL}/{TEST_FASTA}"
+        click.echo(f"  Fetching {TEST_FASTA} …")
         try:
-            _download(url, dest)
+            _download(url, fasta_path)
         except Exception as exc:  # noqa: BLE001
             raise click.ClickException(
                 f"Failed to download {url}\n  {exc}\n\n"
                 f"The test dataset is archived under DOI {ZENODO_DOI}.\n"
-                "Check your internet connection or supply the files manually."
+                "Check your internet connection or supply the files manually using --fasta and --pairs."
             ) from exc
+    elif fasta_path_override or fasta_path.exists():
+        click.echo(f"  Using FASTA from: {fasta_path}")
+
+    if not pairs_path_override and not pairs_path.exists():
+        url = f"{ZENODO_BASE_URL}/{TEST_PAIRS}"
+        click.echo(f"  Fetching {TEST_PAIRS} …")
+        try:
+            _download(url, pairs_path)
+        except Exception as exc:  # noqa: BLE001
+            raise click.ClickException(
+                f"Failed to download {url}\n  {exc}\n\n"
+                f"The test dataset is archived under DOI {ZENODO_DOI}.\n"
+                "Check your internet connection or supply the files manually using --fasta and --pairs."
+            ) from exc
+    elif pairs_path_override or pairs_path.exists():
+        click.echo(f"  Using pairs from: {pairs_path}")
 
     return fasta_path, pairs_path
 
@@ -130,6 +159,8 @@ def _run_test(
     device: int,
     level: int,
     cycles: int,
+    fasta_path_override: pathlib.Path | None = None,
+    pairs_path_override: pathlib.Path | None = None,
 ) -> list[str]:
     """Execute the full instagraal pipeline on the test dataset.
 
@@ -147,8 +178,11 @@ def _run_test(
     _check_gpu(device)
 
     # -- 2. Download test data -----------------------------------------------
-    click.echo(f"\n[2/6] Fetching test data from Zenodo (DOI: {ZENODO_DOI}) …")
-    fasta_path, pairs_path = _fetch_test_data(workdir)
+    if fasta_path_override or pairs_path_override:
+        click.echo("\n[2/6] Locating test data …")
+    else:
+        click.echo(f"\n[2/6] Fetching test data from Zenodo (DOI: {ZENODO_DOI}) …")
+    fasta_path, pairs_path = _fetch_test_data(workdir, fasta_path_override, pairs_path_override)
 
     # -- 3. instagraal-pre ---------------------------------------------------
     click.echo("\n[3/6] Running instagraal-pre …")
@@ -257,6 +291,26 @@ def _run_test(
     help="Keep the working directory after the test completes (useful for inspection).",
 )
 @click.option(
+    "--fasta",
+    default=None,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=pathlib.Path),
+    help=(
+        "Path to manually downloaded FASTA file. "
+        "If provided, skips downloading from Zenodo. "
+        "Useful for offline environments."
+    ),
+)
+@click.option(
+    "--pairs",
+    default=None,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=pathlib.Path),
+    help=(
+        "Path to manually downloaded pairs file. "
+        "If provided, skips downloading from Zenodo. "
+        "Useful for offline environments."
+    ),
+)
+@click.option(
     "--device",
     default=0,
     show_default=True,
@@ -282,6 +336,8 @@ def _run_test(
 def main(
     workdir: pathlib.Path | None,
     keep: bool,
+    fasta: pathlib.Path | None,
+    pairs: pathlib.Path | None,
     device: int,
     level: int,
     cycles: int,
@@ -293,7 +349,8 @@ def main(
     -----
       1. Check that a CUDA-capable GPU is accessible.
       2. Download the test dataset (yeast in silico assembly + Hi-C pairs)
-         from Zenodo (DOI: 10.5281/zenodo.19711358).
+         from Zenodo (DOI: 10.5281/zenodo.19711358), or use locally provided
+         files if --fasta and --pairs are specified.
       3. instagraal-pre   – digest FASTA and bin Hi-C pairs into fragments.
       4. instagraal       – MCMC-based scaffolding.
       5. instagraal-polish – full polishing pipeline.
@@ -310,7 +367,14 @@ def main(
     click.echo(f"Working directory: {workdir}")
 
     try:
-        ran_cmds = _run_test(workdir=workdir, device=device, level=level, cycles=cycles)
+        ran_cmds = _run_test(
+            workdir=workdir,
+            device=device,
+            level=level,
+            cycles=cycles,
+            fasta_path_override=fasta,
+            pairs_path_override=pairs,
+        )
         click.echo("\n[instagraal-test] ALL STEPS PASSED.")
         click.echo("\nCommands executed (for reproducibility):")
         for c in ran_cmds:
