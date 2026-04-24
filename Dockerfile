@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1
 # This image requires nvidia-docker2 and must be run with --gpus all
 
-FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
+ARG CUDA_IMAGE=nvidia/cuda:12.4.1-devel-ubuntu22.04
+FROM ${CUDA_IMAGE}
 
 LABEL Name=instagraal Version=0.1.6
 

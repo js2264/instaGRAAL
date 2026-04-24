@@ -1,0 +1,50 @@
+name: Test (CPU)
+
+on:
+  push:
+    branches: [master, "js2264/*"]
+  pull_request:
+    branches: [master, "js2264/*"]
+
+permissions:
+  contents: read
+
+jobs:
+  test-cpu:
+    name: Test on GHA runner (CPU only)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install pycuda stub
+        # Installs as distribution name "pycuda" so pip considers the hard
+        # dependency satisfied without needing a CUDA toolkit to compile from source.
+        run: pip install ./tools/pycuda-stub/
+
+      - name: Install instagraal with test extras
+        run: pip install ".[test]"
+
+      - name: Run pytest (GPU tests auto-skipped)
+        run: pytest --junitxml=test-results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-cpu
+          path: test-results.xml
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-cpu
+          path: |
+            coverage.xml
+            htmlcov/
