@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pycuda"
-version = "2024.1.stub"
+version = "2024.1.0"
 description = "Stub pycuda package for CPU-only CI environments (no CUDA required)"
 requires-python = ">=3.8"
 
