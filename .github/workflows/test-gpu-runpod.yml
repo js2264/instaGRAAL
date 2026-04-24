@@ -1,88 +1,23 @@
-name: Test (GPU) (RunPod persistent pods)
+name: Test (GPU) (RunPod)
 
-# Architecture: Pre-created persistent RunPod pods with NVIDIA CUDA images.
-# Pods are STOPPED (not deleted) when idle – you pay only for volume disk
-# storage (~$0.20 GB/month), never for GPU compute time between CI runs.
+# Architecture: ephemeral RunPod pods, created fresh on every CI run.
 #
-# The runner binary and its dependencies are stored on the volume disk
-# (/runpod-volume/runner) so they survive stop/start cycles without
-# re-downloading on every run (only the first ever start installs them).
+# Why ephemeral instead of persistent/stopped pods:
+#   RunPod does NOT reserve GPU hardware when a pod is stopped. The GPU is
+#   released to other users, so resume_pod fails with "not enough free GPUs"
+#   whenever hardware has been reallocated. Ephemeral pods sidestep this
+#   entirely by always requesting hardware on-demand.
 #
-# ──────────────────────────────────────────────────────────────────────────
-# ONE-TIME SETUP (do this once in the RunPod console or via the SDK)
-# ──────────────────────────────────────────────────────────────────────────
-# Create three pods – one per CUDA version – with these settings:
+# Startup script (base64-encoded, embedded in the pod's docker_args):
+#   • Runs inside the CUDA container at pod boot.
+#   • Creates a non-root `runner` user.
+#   • Downloads the pinned GHA runner binary to /opt/actions-runner.
+#   • Registers with a unique per-run label, then calls run.sh --once.
+#   • GITHUB_TOKEN, GITHUB_REPO, and RUNNER_LABEL are injected as pod env vars.
 #
-#   Images:
-#     cuda11 → nvidia/cuda:11.8.0-devel-ubuntu22.04
-#     cuda12 → nvidia/cuda:12.8.1-devel-ubuntu24.04
-#     cuda13 → nvidia/cuda:13.2.1-devel-ubuntu24.04
-#
-#   Volume disk: ≥ 10 GB  (mounted at /runpod-volume)
-#   Container disk: 10 GB
-#
-#   Docker command for each pod (set at creation time):
-#
-#
-#     bash -lc '
-#       set -euo pipefail
-#
-#       export DEBIAN_FRONTEND=noninteractive
-#
-#       apt-get update
-#       apt-get install -y --no-install-recommends curl ca-certificates tar git libicu74
-#       rm -rf /var/lib/apt/lists/*
-#
-#       # Create a non-root user for the runner
-#       id -u runner &>/dev/null || useradd -m -s /bin/bash runner
-#
-#       RUNNER_DIR=/opt/actions-runner
-#       WORK_DIR=/runpod-volume/_work
-#
-#       mkdir -p "$RUNNER_DIR" "$WORK_DIR"
-#       chown -R runner:runner "$RUNNER_DIR" "$WORK_DIR"
-#
-#       # Download/extract runner if not already present
-#       if [ ! -f "$RUNNER_DIR/config.sh" ]; then
-#         cd "$RUNNER_DIR"
-#         curl -fL -o actions-runner.tar.gz \
-#           https://github.com/actions/runner/releases/download/v2.334.0/actions-runner-linux-x64-2.334.0.tar.gz
-#         tar xzf actions-runner.tar.gz
-#         rm -f actions-runner.tar.gz
-#         chown -R runner:runner "$RUNNER_DIR"
-#       fi
-#
-#       # Configure + run as non-root
-#       cd "$RUNNER_DIR"
-#
-#       su - runner -c "
-#         cd $RUNNER_DIR
-#         ./config.sh \
-#           --url https://github.com/js2264/instaGRAAL \
-#           --token AEU7Y4XPBWBJ3IBSX5DR65DJ5PZGQ \
-#           --name runner-cuda13.2.1 \
-#           --labels runner-cuda13.2.1 \
-#           --work $WORK_DIR \
-#           --unattended --ephemeral
-#         ./run.sh --ephemeral
-#       "
-#     '
-#
-#
-#   Env vars to inject at pod creation (RunPod console → Environment Variables):
-#     GITHUB_TOKEN  – GitHub PAT with repo scope (for runner registration)
-#     GITHUB_REPO   – koszullab/instaGRAAL
-#     RUNNER_LABEL  – instagraal-cuda11  (or cuda12 / cuda13 for the other pods)
-#
-# After creating the pods, store their IDs in GitHub secrets:
-#   RUNPOD_POD_ID_CUDA13
-#
-# ──────────────────────────────────────────────────────────────────────────
 # Required GitHub secrets:
-#   RUNPOD_API_KEY         – RunPod API key (console → Settings → API Keys)
-#   RUNPOD_POD_ID_CUDA13   – Pod ID for the CUDA 13 pod
-#   GITHUB_TOKEN           – GitHub token with repo scope (runner registration)
-# ──────────────────────────────────────────────────────────────────────────
+#   RUNPOD_API_KEY  – RunPod API key (console → Settings → API Keys)
+#   GH_PAT          – GitHub PAT with `repo` scope (runner registration)
 
 on:
   pull_request:
@@ -90,10 +25,9 @@ on:
   push:
     branches: [master, "js2264/*"]
 
-# Only one run may use the persistent pods at a time.
-# A newer push cancels the in-progress run rather than queuing behind it.
+# Cancel in-progress runs on the same branch to avoid resource waste.
 concurrency:
-  group: gpu-tests
+  group: gpu-tests-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -101,37 +35,117 @@ permissions:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Wake up all three pods.  The pod's Docker command (set at creation time)
-  # re-registers the GHA runner and calls run.sh --once on every boot.
+  # Create one pod per CUDA version, each booting with a self-registering
+  # GHA runner. Pod IDs and runner labels are passed to downstream jobs via
+  # job outputs.
   # ---------------------------------------------------------------------------
   start-runners:
     name: Start RunPod GPU pods
     runs-on: ubuntu-latest
+    outputs:
+      label-cuda13:   ${{ steps.launch.outputs.label-cuda13 }}
+      pod-id-cuda13:  ${{ steps.launch.outputs.pod-id-cuda13 }}
     steps:
       - name: Install RunPod SDK
         run: pip install runpod -q
 
-      - name: Start pods
+      - name: Launch pods
+        id: launch
         env:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
-          POD_ID_CUDA13:  ${{ secrets.RUNPOD_POD_ID_CUDA13 }}
+          GH_PAT:         ${{ secrets.GH_PAT }}
+          GITHUB_REPO:    ${{ github.repository }}
+          RUN_ID:         ${{ github.run_id }}
+          RUN_ATTEMPT:    ${{ github.run_attempt }}
         run: |
           python3 << 'PYEOF'
-          import runpod, os
+          import base64, os, runpod, textwrap
+
           runpod.api_key = os.environ["RUNPOD_API_KEY"]
-          for key in ("CUDA11", "CUDA12", "CUDA13"):
-              pod_id = os.environ.get(f"POD_ID_{key}", "").strip()
-              if pod_id:
-                  runpod.resume_pod(pod_id, gpu_count=1)
-                  print(f"Started {key}: pod={pod_id}")
+
+          # This script runs inside the pod container on boot.
+          # GITHUB_TOKEN, GITHUB_REPO, and RUNNER_LABEL are injected as env vars.
+          startup = textwrap.dedent("""
+              #!/bin/bash
+              set -euo pipefail
+              export DEBIAN_FRONTEND=noninteractive
+
+              apt-get update -qq
+              apt-get install -y -qq --no-install-recommends \
+                curl ca-certificates tar git libicu74 jq
+              rm -rf /var/lib/apt/lists/*
+
+              # Non-root runner user
+              id -u runner &>/dev/null || useradd -m -s /bin/bash runner
+
+              RUNNER_DIR=/opt/actions-runner
+              WORK_DIR=/tmp/runner-work
+              mkdir -p "$RUNNER_DIR" "$WORK_DIR"
+              chown -R runner:runner "$RUNNER_DIR" "$WORK_DIR"
+
+              # Download pinned runner binary
+              cd "$RUNNER_DIR"
+              RUNNER_VERSION=2.323.0
+              curl -fsSLo actions-runner.tar.gz \
+                "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz"
+              tar xzf actions-runner.tar.gz
+              rm -f actions-runner.tar.gz
+              chown -R runner:runner "$RUNNER_DIR"
+              ./bin/installdependencies.sh
+
+              # Obtain a one-time registration token
+              REG_TOKEN=$(curl -fsSL -X POST \
+                -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${GITHUB_REPO}/actions/runners/registration-token" \
+                | jq -r .token)
+
+              su - runner -c "
+                cd $RUNNER_DIR
+                ./config.sh \\\\
+                  --url https://github.com/${GITHUB_REPO} \\\\
+                  --token ${REG_TOKEN} \\\\
+                  --name ${RUNNER_LABEL} \\\\
+                  --labels ${RUNNER_LABEL} \\\\
+                  --work $WORK_DIR \\\\
+                  --unattended --ephemeral
+                ./run.sh --once
+              "
+          """).strip()
+
+          startup_b64 = base64.b64encode(startup.encode()).decode()
+
+          cuda_versions = [
+              ("cuda13", "nvidia/cuda:13.2.1-devel-ubuntu24.04"),
+          ]
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              for key, image in cuda_versions:
+                  label = f"instagraal-{key}-{os.environ['RUN_ID']}-{os.environ['RUN_ATTEMPT']}"
+                  pod = runpod.create_pod(
+                      name=label,
+                      image_name=image,
+                      gpu_type_id="NVIDIA GeForce RTX 4090",
+                      cloud_type="SECURE",
+                      gpu_count=1,
+                      container_disk_in_gb=20,
+                      docker_args=f"bash -c 'echo {startup_b64} | base64 -d | bash'",
+                      env={
+                          "GITHUB_TOKEN": os.environ["GH_PAT"],
+                          "GITHUB_REPO":  os.environ["GITHUB_REPO"],
+                          "RUNNER_LABEL": label,
+                      },
+                  )
+                  print(f"Created {key}: pod={pod['id']} label={label}")
+                  out.write(f"label-{key}={label}\n")
+                  out.write(f"pod-id-{key}={pod['id']}\n")
           PYEOF
 
-      - name: Wait for all runners to come online
+      - name: Wait for runners to come online
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Runner labels are fixed strings set at pod-creation time.
-          for LABEL in instagraal-cuda11 instagraal-cuda12 instagraal-cuda13; do
+          for LABEL in "${{ steps.launch.outputs.label-cuda13 }}"; do
             echo "Waiting for runner: $LABEL"
             STATUS=""
             for i in $(seq 1 36); do
@@ -154,7 +168,7 @@ jobs:
           done
 
   # ---------------------------------------------------------------------------
-  # Run the full test suite on all three pods in parallel.
+  # Run the full test suite on each pod.
   # ---------------------------------------------------------------------------
   test-gpu:
     name: Test (CUDA ${{ matrix.cuda-version }})
@@ -164,7 +178,7 @@ jobs:
       matrix:
         include:
           - cuda-version: "13"
-            runner-label: runner-cuda13.2.1
+            runner-label: ${{ needs.start-runners.outputs.label-cuda13 }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -197,8 +211,7 @@ jobs:
             htmlcov/
 
   # ---------------------------------------------------------------------------
-  # Stop (not delete) all pods – always runs, even on failure/cancellation.
-  # GPU billing stops immediately; only volume disk storage is charged.
+  # Terminate all pods – always runs, even on failure/cancellation.
   # ---------------------------------------------------------------------------
   stop-runners:
     name: Stop RunPod GPU pods
@@ -209,17 +222,17 @@ jobs:
       - name: Install RunPod SDK
         run: pip install runpod -q
 
-      - name: Stop pods
+      - name: Terminate pods
         env:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
-          POD_ID_CUDA13:  ${{ secrets.RUNPOD_POD_ID_CUDA13 }}
+          POD_ID_CUDA13:  ${{ needs.start-runners.outputs.pod-id-cuda13 }}
         run: |
           python3 << 'PYEOF'
           import runpod, os
           runpod.api_key = os.environ["RUNPOD_API_KEY"]
-          for key in ("CUDA11", "CUDA12", "CUDA13"):
+          for key in ("CUDA13",):
               pod_id = os.environ.get(f"POD_ID_{key}", "").strip()
               if pod_id:
-                  runpod.stop_pod(pod_id)
-                  print(f"Stopped {key}: pod={pod_id}")
+                  runpod.terminate_pod(pod_id)
+                  print(f"Terminated {key}: pod={pod_id}")
           PYEOF
