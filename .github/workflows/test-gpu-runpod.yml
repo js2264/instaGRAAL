@@ -9,15 +9,15 @@ name: Test (GPU) (RunPod)
 #   entirely by always requesting hardware on-demand.
 #
 # Startup script (base64-encoded, embedded in the pod's docker_args):
-#   • Runs inside the CUDA container at pod boot.
-#   • Creates a non-root `runner` user.
-#   • Downloads the pinned GHA runner binary to /opt/actions-runner.
-#   • Registers with a unique per-run label, then calls run.sh --once.
-#   • GITHUB_TOKEN, GITHUB_REPO, and RUNNER_LABEL are injected as pod env vars.
+#   - Runs inside the CUDA container at pod boot.
+#   - Creates a non-root `runner` user.
+#   - Downloads the pinned GHA runner binary to /opt/actions-runner.
+#   - Registers with a unique per-run label, then calls run.sh --once.
+#   - GITHUB_TOKEN, GITHUB_REPO, and RUNNER_LABEL are injected as pod env vars.
 #
 # Required GitHub secrets:
-#   RUNPOD_API_KEY  – RunPod API key (console → Settings → API Keys)
-#   GH_PAT          – GitHub PAT with `repo` scope (runner registration)
+#   RUNPOD_API_KEY  - RunPod API key (console -> Settings -> API Keys)
+#   GITHUB_TOKEN          - GitHub PAT with `repo` scope (runner registration)
 
 on:
   pull_request:
@@ -43,8 +43,8 @@ jobs:
     name: Start RunPod GPU pods
     runs-on: ubuntu-latest
     outputs:
-      label-cuda13:   ${{ steps.launch.outputs.label-cuda13 }}
-      pod-id-cuda13:  ${{ steps.launch.outputs.pod-id-cuda13 }}
+      label-cuda13:  ${{ steps.launch.outputs.label-cuda13 }}
+      pod-id-cuda13: ${{ steps.launch.outputs.pod-id-cuda13 }}
     steps:
       - name: Install RunPod SDK
         run: pip install runpod -q
@@ -53,65 +53,42 @@ jobs:
         id: launch
         env:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
-          GH_PAT:         ${{ secrets.GH_PAT }}
+          GITHUB_TOKEN:         ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPO:    ${{ github.repository }}
           RUN_ID:         ${{ github.run_id }}
           RUN_ATTEMPT:    ${{ github.run_attempt }}
         run: |
-          python3 << 'PYEOF'
+          python3 - << 'SCRIPTEOF'
           import base64, os, runpod, textwrap
 
           runpod.api_key = os.environ["RUNPOD_API_KEY"]
 
-          # This script runs inside the pod container on boot.
-          # GITHUB_TOKEN, GITHUB_REPO, and RUNNER_LABEL are injected as env vars.
-          startup = textwrap.dedent("""
-              #!/bin/bash
-              set -euo pipefail
-              export DEBIAN_FRONTEND=noninteractive
-
-              apt-get update -qq
-              apt-get install -y -qq --no-install-recommends \
-                curl ca-certificates tar git libicu74 jq
-              rm -rf /var/lib/apt/lists/*
-
-              # Non-root runner user
-              id -u runner &>/dev/null || useradd -m -s /bin/bash runner
-
-              RUNNER_DIR=/opt/actions-runner
-              WORK_DIR=/tmp/runner-work
-              mkdir -p "$RUNNER_DIR" "$WORK_DIR"
-              chown -R runner:runner "$RUNNER_DIR" "$WORK_DIR"
-
-              # Download pinned runner binary
-              cd "$RUNNER_DIR"
-              RUNNER_VERSION=2.323.0
-              curl -fsSLo actions-runner.tar.gz \
-                "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz"
-              tar xzf actions-runner.tar.gz
-              rm -f actions-runner.tar.gz
-              chown -R runner:runner "$RUNNER_DIR"
-              ./bin/installdependencies.sh
-
-              # Obtain a one-time registration token
-              REG_TOKEN=$(curl -fsSL -X POST \
-                -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-                -H "Accept: application/vnd.github+json" \
-                "https://api.github.com/repos/${GITHUB_REPO}/actions/runners/registration-token" \
-                | jq -r .token)
-
-              su - runner -c "
-                cd $RUNNER_DIR
-                ./config.sh \\\\
-                  --url https://github.com/${GITHUB_REPO} \\\\
-                  --token ${REG_TOKEN} \\\\
-                  --name ${RUNNER_LABEL} \\\\
-                  --labels ${RUNNER_LABEL} \\\\
-                  --work $WORK_DIR \\\\
-                  --unattended --ephemeral
-                ./run.sh --once
-              "
-          """).strip()
+          startup = (
+              "#!/bin/bash\n"
+              "set -euo pipefail\n"
+              "export DEBIAN_FRONTEND=noninteractive\n"
+              "apt-get update -qq\n"
+              "apt-get install -y -qq --no-install-recommends curl ca-certificates tar git libicu74 jq\n"
+              "rm -rf /var/lib/apt/lists/*\n"
+              "id -u runner &>/dev/null || useradd -m -s /bin/bash runner\n"
+              "RUNNER_DIR=/opt/actions-runner\n"
+              "WORK_DIR=/tmp/runner-work\n"
+              "mkdir -p \"$RUNNER_DIR\" \"$WORK_DIR\"\n"
+              "chown -R runner:runner \"$RUNNER_DIR\" \"$WORK_DIR\"\n"
+              "RUNNER_VERSION=2.323.0\n"
+              "cd \"$RUNNER_DIR\"\n"
+              "curl -fsSLo actions-runner.tar.gz \"https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz\"\n"
+              "tar xzf actions-runner.tar.gz\n"
+              "rm -f actions-runner.tar.gz\n"
+              "chown -R runner:runner \"$RUNNER_DIR\"\n"
+              "./bin/installdependencies.sh\n"
+              "REG_TOKEN=$(curl -fsSL -X POST -H \"Authorization: Bearer ${GITHUB_TOKEN}\" -H \"Accept: application/vnd.github+json\" \"https://api.github.com/repos/${GITHUB_REPO}/actions/runners/registration-token\" | jq -r .token)\n"
+              "su - runner -c \"\n"
+              "  cd ${RUNNER_DIR}\n"
+              "  ./config.sh --url https://github.com/${GITHUB_REPO} --token ${REG_TOKEN} --name ${RUNNER_LABEL} --labels ${RUNNER_LABEL} --work ${WORK_DIR} --unattended --ephemeral\n"
+              "  ./run.sh --once\n"
+              "\"\n"
+          )
 
           startup_b64 = base64.b64encode(startup.encode()).decode()
 
@@ -131,7 +108,7 @@ jobs:
                       container_disk_in_gb=20,
                       docker_args=f"bash -c 'echo {startup_b64} | base64 -d | bash'",
                       env={
-                          "GITHUB_TOKEN": os.environ["GH_PAT"],
+                          "GITHUB_TOKEN": os.environ["GITHUB_TOKEN"],
                           "GITHUB_REPO":  os.environ["GITHUB_REPO"],
                           "RUNNER_LABEL": label,
                       },
@@ -139,18 +116,18 @@ jobs:
                   print(f"Created {key}: pod={pod['id']} label={label}")
                   out.write(f"label-{key}={label}\n")
                   out.write(f"pod-id-{key}={pod['id']}\n")
-          PYEOF
+          SCRIPTEOF
 
       - name: Wait for runners to come online
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           for LABEL in "${{ steps.launch.outputs.label-cuda13 }}"; do
             echo "Waiting for runner: $LABEL"
             STATUS=""
             for i in $(seq 1 36); do
               STATUS=$(curl -fsSL \
-                -H "Authorization: Bearer $GH_TOKEN" \
+                -H "Authorization: Bearer $GITHUB_TOKEN" \
                 -H "Accept: application/vnd.github+json" \
                 "https://api.github.com/repos/${{ github.repository }}/actions/runners" \
                 | jq -r ".runners[] | select(.name == \"$LABEL\") | .status")
@@ -211,7 +188,7 @@ jobs:
             htmlcov/
 
   # ---------------------------------------------------------------------------
-  # Terminate all pods – always runs, even on failure/cancellation.
+  # Terminate all pods - always runs, even on failure/cancellation.
   # ---------------------------------------------------------------------------
   stop-runners:
     name: Stop RunPod GPU pods
@@ -227,7 +204,7 @@ jobs:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
           POD_ID_CUDA13:  ${{ needs.start-runners.outputs.pod-id-cuda13 }}
         run: |
-          python3 << 'PYEOF'
+          python3 - << 'SCRIPTEOF'
           import runpod, os
           runpod.api_key = os.environ["RUNPOD_API_KEY"]
           for key in ("CUDA13",):
@@ -235,4 +212,4 @@ jobs:
               if pod_id:
                   runpod.terminate_pod(pod_id)
                   print(f"Terminated {key}: pod={pod_id}")
-          PYEOF
+          SCRIPTEOF
