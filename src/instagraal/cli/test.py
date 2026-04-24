@@ -35,6 +35,29 @@ DEFAULT_TEST_LEVEL = 4
 # ---------------------------------------------------------------------------
 
 
+def _check_nvcc() -> None:
+    """Verify that nvcc (NVIDIA CUDA Compiler) is available in PATH."""
+    try:
+        result = subprocess.run(
+            ["nvcc", "--version"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=5,
+        )
+        # Extract version line (typically the last line)
+        version_line = result.stdout.strip().split("\n")[-1]
+        click.echo(f"  nvcc: {version_line}")
+    except FileNotFoundError:
+        raise click.ClickException(
+            "nvcc not found in PATH.  CUDA Toolkit SDK must be installed and nvcc must be accessible."
+        )
+    except subprocess.TimeoutExpired:
+        raise click.ClickException("nvcc check timed out.")
+    except subprocess.CalledProcessError as exc:
+        raise click.ClickException(f"nvcc check failed: {exc.stderr}") from exc
+
+
 def _check_gpu(device: int) -> None:
     """Verify that pycuda can initialise the requested CUDA device."""
     try:
@@ -69,6 +92,10 @@ def _check_gpu(device: int) -> None:
 
     dev = cuda.Device(device)
     click.echo(f"  GPU {device}: {dev.name()} " f"({dev.total_memory() // 1024 ** 2} MB)")
+
+    # Check for nvcc availability
+    click.echo("  Checking for CUDA Toolkit (nvcc) …")
+    _check_nvcc()
 
 
 def _reporthook(block_num: int, block_size: int, total_size: int) -> None:
