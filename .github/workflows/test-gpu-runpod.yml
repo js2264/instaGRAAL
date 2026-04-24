@@ -1,0 +1,215 @@
+name: Test GPU (RunPod)
+
+# Architecture: RunPod on-demand pods with standard NVIDIA CUDA images.
+# The workflow creates a pod per CUDA version via the RunPod Python SDK,
+# passing a self-contained startup script (base64-encoded) that downloads
+# and registers a GHA runner, runs it once, then exits.
+# No custom Docker image, no Dockerfile, no endpoint management needed.
+#
+# Note: pod creation uses the Python SDK because `runpodctl pod create` does
+# not expose a --docker-args flag (needed to inject the startup command).
+# Everything else uses runpodctl.
+#
+# Required GitHub secrets:
+#   RUNPOD_API_KEY  – RunPod API key (console.runpod.io → Settings → API Keys)
+#   GITHUB_TOKEN          – GitHub PAT with `repo` scope
+
+on:
+  pull_request:
+    branches: [master, "js2264/*"]
+  push:
+    branches: [master, "js2264/*"]
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Create one RunPod pod per CUDA version.  Each pod runs a startup script
+  # that installs the GHA runner binary, registers it with a unique label,
+  # and executes run.sh --once.
+  # ---------------------------------------------------------------------------
+  start-runners:
+    name: Start RunPod GPU pods
+    runs-on: ubuntu-latest
+    outputs:
+      label-cuda11: ${{ steps.launch.outputs.label-cuda11 }}
+      pod-id-cuda11: ${{ steps.launch.outputs.pod-id-cuda11 }}
+      label-cuda12: ${{ steps.launch.outputs.label-cuda12 }}
+      pod-id-cuda12: ${{ steps.launch.outputs.pod-id-cuda12 }}
+      label-cuda13: ${{ steps.launch.outputs.label-cuda13 }}
+      pod-id-cuda13: ${{ steps.launch.outputs.pod-id-cuda13 }}
+    steps:
+      # runpodctl pod create lacks --docker-args, so pod creation goes through
+      # the Python SDK which exposes the full GraphQL mutation surface.
+      - name: Install RunPod SDK
+        run: pip install runpod -q
+
+      - name: Launch pods
+        id: launch
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          python3 << 'PYEOF'
+          import base64, os, runpod, textwrap
+
+          runpod.api_key = os.environ["RUNPOD_API_KEY"]
+
+          # Startup script runs inside the pod container.
+          # Reads GITHUB_TOKEN, GITHUB_REPO, RUNNER_LABEL from env vars injected by RunPod.
+          startup = base64.b64encode(textwrap.dedent("""
+              #!/bin/bash
+              set -e
+              apt-get update -qq
+              apt-get install -y -qq curl jq git libicu-dev
+              mkdir -p /runner && cd /runner
+              VER=$(curl -fsSL https://api.github.com/repos/actions/runner/releases/latest \
+                    | jq -r '.tag_name' | sed 's/v//')
+              curl -fsSLo runner.tar.gz \
+                "https://github.com/actions/runner/releases/download/v${VER}/actions-runner-linux-x64-${VER}.tar.gz"
+              tar xzf runner.tar.gz && rm runner.tar.gz
+              ./bin/installdependencies.sh
+              TOKEN=$(curl -fsSL -X POST \
+                -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${GITHUB_REPO}/actions/runners/registration-token" \
+                | jq -r .token)
+              ./config.sh \
+                --url "https://github.com/${GITHUB_REPO}" \
+                --token "${TOKEN}" \
+                --name "${RUNNER_LABEL}" \
+                --labels "${RUNNER_LABEL}" \
+                --work _work --unattended --ephemeral
+              ./run.sh --once
+          """).strip().encode()).decode()
+
+          cuda_versions = [
+              ("cuda11", "nvidia/cuda:11.8.0-devel-ubuntu22.04"),
+              ("cuda12", "nvidia/cuda:12.8.1-devel-ubuntu24.04"),
+              ("cuda13", "nvidia/cuda:13.2.1-devel-ubuntu24.04"),
+          ]
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              for key, image in cuda_versions:
+                  label = f"instagraal-{key}-{os.environ['RUN_ID']}-{os.environ['RUN_ATTEMPT']}"
+                  pod = runpod.create_pod(
+                      name=label,
+                      image_name=image,
+                      gpu_type_id="NVIDIA GeForce RTX 4090",
+                      cloud_type="SECURE",
+                      gpu_count=1,
+                      container_disk_in_gb=20,
+                      # Decode the base64 startup script and run it
+                      docker_args=f"bash -c 'echo {startup} | base64 -d | bash'",
+                      env={
+                          "GITHUB_TOKEN":        os.environ["GITHUB_TOKEN"],
+                          "GITHUB_REPO":   os.environ["GITHUB_REPO"],
+                          "RUNNER_LABEL":  label,
+                      },
+                  )
+                  print(f"Started {key}: pod={pod['id']} label={label}")
+                  out.write(f"label-{key}={label}\n")
+                  out.write(f"pod-id-{key}={pod['id']}\n")
+          PYEOF
+
+      - name: Wait for all runners to come online
+        run: |
+          for LABEL in \
+            "${{ steps.launch.outputs.label-cuda11 }}" \
+            "${{ steps.launch.outputs.label-cuda12 }}" \
+            "${{ steps.launch.outputs.label-cuda13 }}"; do
+            echo "Waiting for runner: $LABEL"
+            for i in $(seq 1 30); do
+              STATUS=$(curl -fsSL \
+                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${{ github.repository }}/actions/runners" \
+                | jq -r ".runners[] | select(.name == \"$LABEL\") | .status")
+              if [ "$STATUS" = "online" ]; then
+                echo "  $LABEL is online."
+                break
+              fi
+              echo "  Attempt $i/30 - not online yet, retrying in 10s..."
+              sleep 10
+            done
+            if [ "$STATUS" != "online" ]; then
+              echo "ERROR: $LABEL did not come online within 5 minutes." >&2
+              exit 1
+            fi
+          done
+
+  # ---------------------------------------------------------------------------
+  # Run the full test suite on all three pods in parallel.
+  # ---------------------------------------------------------------------------
+  test-gpu:
+    name: Test (CUDA ${{ matrix.cuda-version }})
+    runs-on: ${{ matrix.runner-label }}
+    needs: start-runners
+    strategy:
+      matrix:
+        include:
+          - cuda-version: "11"
+            runner-label: ${{ needs.start-runners.outputs.label-cuda11 }}
+          - cuda-version: "12"
+            runner-label: ${{ needs.start-runners.outputs.label-cuda12 }}
+          - cuda-version: "13"
+            runner-label: ${{ needs.start-runners.outputs.label-cuda13 }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install instagraal with test extras
+        run: pip install ".[test]"
+
+      - name: Run pytest (CUDA ${{ matrix.cuda-version }})
+        run: pytest -v --tb=short > test-results.txt 2>&1 || true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-runpod-cuda${{ matrix.cuda-version }}
+          path: test-results.txt
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-runpod-cuda${{ matrix.cuda-version }}
+          path: |
+            coverage.xml
+            htmlcov/
+
+  # ---------------------------------------------------------------------------
+  # Terminate all pods (always runs, even on failure/cancellation).
+  # Uses runpodctl – no Python SDK needed for simple pod deletion.
+  # ---------------------------------------------------------------------------
+  stop-runners:
+    name: Stop RunPod GPU pods
+    runs-on: ubuntu-latest
+    needs: [start-runners, test-gpu]
+    if: always()
+    steps:
+      - name: Install runpodctl
+        run: wget -qO- cli.runpod.net | sudo bash
+
+      - name: Terminate pods
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          runpodctl config --apiKey="$RUNPOD_API_KEY"
+          for POD_ID in \
+            "${{ needs.start-runners.outputs.pod-id-cuda11 }}" \
+            "${{ needs.start-runners.outputs.pod-id-cuda12 }}" \
+            "${{ needs.start-runners.outputs.pod-id-cuda13 }}"; do
+            [ -n "$POD_ID" ] && runpodctl pod delete "$POD_ID" && echo "Deleted $POD_ID" || true
+          done
