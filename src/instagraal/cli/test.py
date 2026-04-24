@@ -51,9 +51,9 @@ def _check_nvcc() -> None:
     except FileNotFoundError:
         raise click.ClickException(
             "nvcc not found in PATH.  CUDA Toolkit SDK must be installed and nvcc must be accessible."
-        )
+        ) from None
     except subprocess.TimeoutExpired:
-        raise click.ClickException("nvcc check timed out.")
+        raise click.ClickException("nvcc check timed out.") from None
     except subprocess.CalledProcessError as exc:
         raise click.ClickException(f"nvcc check failed: {exc.stderr}") from exc
 
@@ -63,12 +63,10 @@ def _check_gpu(device: int) -> None:
     try:
         import pycuda
     except ImportError as exc:
-        raise click.ClickException(
-            "pycuda is not installed.  instagraal requires it along with a CUDA-capable GPU."
-        ) from exc
+        raise click.ClickException("pycuda is not installed.  instagraal requires it along with a CUDA-capable GPU.") from exc
     click.echo(f"  pycuda version: {pycuda.VERSION_TEXT}")
     try:
-        import pycuda.driver as cuda  # noqa: PLC0415
+        import pycuda.driver as cuda
     except ImportError as exc:
         raise click.ClickException(
             "pycuda cannot import the driver module.  Check your pycuda installation and CUDA setup."
@@ -78,7 +76,7 @@ def _check_gpu(device: int) -> None:
 
     try:
         cuda.init()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise click.ClickException(f"CUDA initialisation failed: {exc}") from exc
     click.echo("  Cuda successfully initialised")
 
@@ -86,9 +84,7 @@ def _check_gpu(device: int) -> None:
     if n_devices == 0:
         raise click.ClickException("No CUDA devices found.  instagraal requires at least one GPU.")
     if device >= n_devices:
-        raise click.ClickException(
-            f"Requested device {device} but only {n_devices} device(s) available " f"(0–{n_devices - 1})."
-        )
+        raise click.ClickException(f"Requested device {device} but only {n_devices} device(s) available " f"(0-{n_devices - 1}).")
 
     dev = cuda.Device(device)
     click.echo(f"  GPU {device}: {dev.name()} " f"({dev.total_memory() // 1024 ** 2} MB)")
@@ -150,7 +146,7 @@ def _fetch_test_data(
         click.echo(f"  Fetching {TEST_FASTA} …")
         try:
             _download(url, fasta_path)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise click.ClickException(
                 f"Failed to download {url}\n  {exc}\n\n"
                 f"The test dataset is archived under DOI {ZENODO_DOI}.\n"
@@ -164,7 +160,7 @@ def _fetch_test_data(
         click.echo(f"  Fetching {TEST_PAIRS} …")
         try:
             _download(url, pairs_path)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise click.ClickException(
                 f"Failed to download {url}\n  {exc}\n\n"
                 f"The test dataset is archived under DOI {ZENODO_DOI}.\n"
@@ -378,10 +374,10 @@ def main(
       2. Download the test dataset (yeast in silico assembly + Hi-C pairs)
          from Zenodo (DOI: 10.5281/zenodo.19711358), or use locally provided
          files if --fasta and --pairs are specified.
-      3. instagraal-pre   – digest FASTA and bin Hi-C pairs into fragments.
-      4. instagraal       – MCMC-based scaffolding.
-      5. instagraal-polish – full polishing pipeline.
-      6. instagraal-stats  – compare input vs. polished assembly statistics.
+      3. instagraal-pre   - digest FASTA and bin Hi-C pairs into fragments.
+      4. instagraal       - MCMC-based scaffolding.
+      5. instagraal-polish - full polishing pipeline.
+      6. instagraal-stats  - compare input vs. polished assembly statistics.
 
     The test uses S. cerevisiae as the model organism (enzyme: DpnII).
     """
