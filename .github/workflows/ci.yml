@@ -2,70 +2,93 @@ name: CI
 
 on:
   push:
-    branches: [master, js2264/*]
+    branches: [master, "js2264/*"]
   pull_request:
-    branches: [master, js2264/*]
+    branches: [master, "js2264/*"]
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
-  docker-build-and-test:
+
+  # ---------------------------------------------------------------------------
+  # 1. Build the Docker image and release it to GHCR.
+  #    Pushes the image on branch pushes; only builds (no push) on PRs so the
+  #    Dockerfile is validated without polluting the registry.
+  # ---------------------------------------------------------------------------
+  docker:
+    name: Build and push Docker image to GHCR
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build Docker image
-        run: docker build -t instagraal .
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check for NVIDIA GPU availability
-        id: gpu
-        run: |
-          if command -v nvidia-smi >/dev/null 2>&1; then
-            echo "has_gpu=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_gpu=false" >> $GITHUB_OUTPUT
-          fi
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
 
-      - name: Check that instagraal is available in the container
-        run: |
-          docker run instagraal bash -c \
-            "ls /usr/local/lib/python3.10/dist-packages/ | grep -i instagraal"
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Run pytest (GPU tests auto-skipped when no GPU)
-        # Mount the workspace so pytest can find pyproject.toml, tests/, and
-        # example/ data.  GPU tests carry their own skip guard and are skipped
-        # automatically on CPU-only runners.
-        # --gpus all is added only when a GPU is present so the flag is never
-        # passed to a runtime that doesn't support it.
-        run: |
-          GPU_FLAG=""
-          if [ "${{ steps.gpu.outputs.has_gpu }}" = "true" ]; then
-            GPU_FLAG="--gpus all"
-          fi
-          docker run $GPU_FLAG \
-            -v ${{ github.workspace }}:/workspace \
-            --workdir /workspace \
-            instagraal \
-            bash -c "
-              uv pip install --system '/workspace[test]' && \
-              pytest --junitxml=test-results.xml
-            "
+  # ---------------------------------------------------------------------------
+  # 2. Lightweight CPU test job on a standard GHA runner.
+  #    Uses a thin in-repo pycuda stub so that `pip install .[test]` succeeds
+  #    without a CUDA toolkit.  GPU tests are auto-skipped by their own guard.
+  # ---------------------------------------------------------------------------
+  test-cpu:
+    name: Test on GHA runner (CPU only)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install pycuda stub
+        # Installs as distribution name "pycuda" so pip considers the hard
+        # dependency satisfied without needing a CUDA toolkit to compile from source.
+        run: pip install ./tools/pycuda-stub/
+
+      - name: Install instagraal with test extras
+        run: pip install ".[test]"
+
+      - name: Run pytest (GPU tests auto-skipped)
+        run: pytest --junitxml=test-results.xml
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: test-results-cpu
           path: test-results.xml
 
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
+          name: coverage-report-cpu
           path: |
             coverage.xml
             htmlcov/
-
