@@ -1,4 +1,4 @@
-name: Test GPU (RunPod persistent pods)
+name: Test (GPU) (RunPod persistent pods)
 
 # Architecture: Pre-created persistent RunPod pods with NVIDIA CUDA images.
 # Pods are STOPPED (not deleted) when idle – you pay only for volume disk
@@ -122,7 +122,7 @@ jobs:
           for key in ("CUDA11", "CUDA12", "CUDA13"):
               pod_id = os.environ.get(f"POD_ID_{key}", "").strip()
               if pod_id:
-                  runpod.start_pod(pod_id)
+                  runpod.resume_pod(pod_id, gpu_count=1)
                   print(f"Started {key}: pod={pod_id}")
           PYEOF
 
