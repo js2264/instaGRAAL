@@ -1,24 +1,5 @@
 name: Test (GPU) (RunPod)
 
-# Architecture: ephemeral RunPod pods, created fresh on every CI run.
-#
-# Why ephemeral instead of persistent/stopped pods:
-#   RunPod does NOT reserve GPU hardware when a pod is stopped. The GPU is
-#   released to other users, so resume_pod fails with "not enough free GPUs"
-#   whenever hardware has been reallocated. Ephemeral pods sidestep this
-#   entirely by always requesting hardware on-demand.
-#
-# Startup script (base64-encoded, embedded in the pod's docker_args):
-#   - Runs inside the CUDA container at pod boot.
-#   - Creates a non-root `runner` user.
-#   - Downloads the pinned GHA runner binary to /opt/actions-runner.
-#   - Registers with a unique per-run label, then calls run.sh --once.
-#   - GITHUB_TOKEN, GITHUB_REPO, and RUNNER_LABEL are injected as pod env vars.
-#
-# Required GitHub secrets:
-#   RUNPOD_API_KEY  - RunPod API key (console -> Settings -> API Keys)
-#   GITHUB_TOKEN          - GitHub PAT with `repo` scope (runner registration)
-
 on:
   pull_request:
     branches: [master, "js2264/*"]
@@ -34,6 +15,8 @@ permissions:
   contents: write
 
 jobs:
+
+
   # ---------------------------------------------------------------------------
   # Create one pod per CUDA version, each booting with a self-registering
   # GHA runner. Pod IDs and runner labels are passed to downstream jobs via
@@ -46,84 +29,72 @@ jobs:
       label-cuda12:  ${{ steps.launch.outputs.label-cuda12 }}
       pod-id-cuda12: ${{ steps.launch.outputs.pod-id-cuda12 }}
     steps:
-      - name: Install RunPod SDK
-        run: pip install runpod -q
+
+      - name: Install runpodctl
+        run: |
+          mkdir -p ~/.local/bin
+          wget -q https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64 \
+            -O ~/.local/bin/runpodctl
+          chmod +x ~/.local/bin/runpodctl
+
+      - name: Generate Runner Registration Token
+        id: token
+        run: |
+          TOKEN=$(curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GH_PAT }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/js2264/instaGRAAL/actions/runners/registration-token \
+            | jq -r '.token')
+          echo "registration_token=$TOKEN" >> "$GITHUB_OUTPUT"
 
       - name: Launch pods
         id: launch
         env:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
-          GITHUB_TOKEN:         ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPO:    ${{ github.repository }}
-          RUN_ID:         ${{ github.run_id }}
-          RUN_ATTEMPT:    ${{ github.run_attempt }}
+          RUNPOD_TEMPLATE_ID: ${{ secrets.RUNPOD_TEMPLATE_ID_CUDA_12_9_1 }}
         run: |
-          python3 - << 'SCRIPTEOF'
-          import base64, os, runpod, textwrap
+          runpodctl config --apiKey "$RUNPOD_API_KEY"
 
-          runpod.api_key = os.environ["RUNPOD_API_KEY"]
+          # Label is fixed - baked into the template startup command.
+          LABEL="runner-${RUNPOD_TEMPLATE_ID}"
 
-          startup = (
-              "#!/bin/bash\n"
-              "set -euo pipefail\n"
-              "export DEBIAN_FRONTEND=noninteractive\n"
-              "apt-get update -qq\n"
-              "apt-get install -y -qq --no-install-recommends curl ca-certificates tar git libicu-dev jq\n"
-              "rm -rf /var/lib/apt/lists/*\n"
-              "id -u runner &>/dev/null || useradd -m -s /bin/bash runner\n"
-              "RUNNER_DIR=/opt/actions-runner\n"
-              "WORK_DIR=/tmp/runner-work\n"
-              "mkdir -p \"$RUNNER_DIR\" \"$WORK_DIR\"\n"
-              "chown -R runner:runner \"$RUNNER_DIR\" \"$WORK_DIR\"\n"
-              "RUNNER_VERSION=2.323.0\n"
-              "cd \"$RUNNER_DIR\"\n"
-              "curl -fsSLo actions-runner.tar.gz \"https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz\"\n"
-              "tar xzf actions-runner.tar.gz\n"
-              "rm -f actions-runner.tar.gz\n"
-              "chown -R runner:runner \"$RUNNER_DIR\"\n"
-              "./bin/installdependencies.sh\n"
-              "REG_TOKEN=$(curl -fsSL -X POST -H \"Authorization: Bearer ${GITHUB_TOKEN}\" -H \"Accept: application/vnd.github+json\" \"https://api.github.com/repos/${GITHUB_REPO}/actions/runners/registration-token\" | jq -r .token)\n"
-              "su - runner -c \"\n"
-              "  cd ${RUNNER_DIR}\n"
-              "  ./config.sh --url https://github.com/${GITHUB_REPO} --token ${REG_TOKEN} --name ${RUNNER_LABEL} --labels ${RUNNER_LABEL} --work ${WORK_DIR} --unattended --ephemeral\n"
-              "  ./run.sh --once\n"
-              "\"\n"
-          )
+          POD_JSON=$(runpodctl pod create \
+            --template-id $RUNPOD_TEMPLATE_ID \
+            --gpu-id "NVIDIA GeForce RTX 4090" \
+            --cloud-type SECURE \
+            --name "$LABEL" \
+            --env "RUNNER_TOKEN=${{ steps.token.outputs.registration_token }} LABEL=$LABEL" \
+            -o json)
 
-          startup_b64 = base64.b64encode(startup.encode()).decode()
-
-          cuda_versions = [
-              ("cuda12", "nvidia/cuda:12.4.1-devel-ubuntu22.04"),
-          ]
-
-          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
-              for key, image in cuda_versions:
-                  label = f"instagraal-{key}-{os.environ['RUN_ID']}-{os.environ['RUN_ATTEMPT']}"
-                  pod = runpod.create_pod(
-                      name=label,
-                      image_name=image,
-                      gpu_type_id="NVIDIA GeForce RTX 4090",
-                      cloud_type="SECURE",
-                      gpu_count=1,
-                      container_disk_in_gb=20,
-                      docker_args=f"bash -c 'echo {startup_b64} | base64 -d | bash'",
-                      env={
-                          "GITHUB_TOKEN": os.environ["GITHUB_TOKEN"],
-                          "GITHUB_REPO":  os.environ["GITHUB_REPO"],
-                          "RUNNER_LABEL": label,
-                      },
-                  )
-                  print(f"Created {key}: pod={pod['id']} label={label}")
-                  out.write(f"label-{key}={label}\n")
-                  out.write(f"pod-id-{key}={pod['id']}\n")
-          SCRIPTEOF
+          POD_ID=$(echo "$POD_JSON" | jq -r .id)
+          echo "Created pod: $POD_ID  label: $LABEL"
+          echo "label-cuda12=$LABEL"   >> "$GITHUB_OUTPUT"
+          echo "pod-id-cuda12=$POD_ID" >> "$GITHUB_OUTPUT"
 
       - name: Wait for runners to come online
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_PAT: ${{ secrets.GH_PAT }}
         run: |
-          echo "Waiting for runners to register with GitHub..."
-          sleep 30  # Initial delay to allow pods to boot and start the registration process.
+          LABEL="${{ steps.launch.outputs.label-cuda12 }}"
+          echo "Waiting for runner: $LABEL"
+          STATUS=""
+          for i in $(seq 1 12); do
+            STATUS=$(curl -fsSL \
+              -H "Authorization: Bearer $GH_PAT" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/runners" \
+              | jq -r ".runners[] | select(.name == \"$LABEL\") | .status")
+            if [ "$STATUS" = "online" ]; then
+              echo "  $LABEL is online."
+              break
+            fi
+            echo "  Attempt $i/12 - not online yet, retrying in 10s..."
+            sleep 10
+          done
+          if [ "$STATUS" != "online" ]; then
+            echo "ERROR: $LABEL did not come online within 2 minutes." >&2
+            exit 1
+          fi
 
   # ---------------------------------------------------------------------------
   # Run the full test suite on each pod.
@@ -135,7 +106,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - cuda-version: "12"
+          - cuda-version: "12.4.1"
             runner-label: ${{ needs.start-runners.outputs.label-cuda12 }}
     steps:
       - name: Checkout repository
@@ -177,20 +148,20 @@ jobs:
     needs: [start-runners, test-gpu]
     if: always()
     steps:
-      - name: Install RunPod SDK
-        run: pip install runpod -q
+      - name: Install runpodctl
+        run: |
+          mkdir -p ~/.local/bin
+          wget -q https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64 \
+            -O ~/.local/bin/runpodctl
+          chmod +x ~/.local/bin/runpodctl
 
       - name: Terminate pods
         env:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
           POD_ID_CUDA12:  ${{ needs.start-runners.outputs.pod-id-cuda12 }}
         run: |
-          python3 - << 'SCRIPTEOF'
-          import runpod, os
-          runpod.api_key = os.environ["RUNPOD_API_KEY"]
-          for key in ("CUDA12",):
-              pod_id = os.environ.get(f"POD_ID_{key}", "").strip()
-              if pod_id:
-                  runpod.terminate_pod(pod_id)
-                  print(f"Terminated {key}: pod={pod_id}")
-          SCRIPTEOF
+          runpodctl config --apiKey "$RUNPOD_API_KEY"
+          if [ -n "$POD_ID_CUDA12" ]; then
+            runpodctl pod delete "$POD_ID_CUDA12"
+            echo "Terminated pod: $POD_ID_CUDA12"
+          fi
