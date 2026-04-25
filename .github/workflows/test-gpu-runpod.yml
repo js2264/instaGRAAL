@@ -45,6 +45,7 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/js2264/instaGRAAL/actions/runners/registration-token \
             | jq -r '.token')
+          echo "::add-mask::$TOKEN"
           echo "registration_token=$TOKEN" >> "$GITHUB_OUTPUT"
 
       - name: Launch pods
@@ -67,6 +68,11 @@ jobs:
             --env "$ENV_JSON" \
             -o json)
           POD_ID=$(echo "$POD_JSON" | jq -r .id)
+          if [ -z "$POD_ID" ] || [ "$POD_ID" = "null" ]; then
+            echo "ERROR: Pod creation failed:"
+            echo "$POD_JSON"
+            exit 1
+          fi
           echo "Created pod: $POD_ID  label: $LABEL"
           echo "label=$LABEL"   >> "$GITHUB_OUTPUT"
           echo "pod-id=$POD_ID" >> "$GITHUB_OUTPUT"
@@ -112,11 +118,22 @@ jobs:
         with:
           python-version: "3.10"
 
+      - name: Verify GPU
+        run: nvidia-smi
+
+      - name: Debug CUDA paths
+        run: |
+          echo "PATH=$PATH"
+          which nvcc || echo "nvcc not in PATH"
+          ls /usr/local/cuda/bin/nvcc || echo "nvcc not on disk"
+          ls /usr/local/cuda/include/cuda.h || echo "cuda.h not on disk"
+          cat /etc/environment || true
+
       - name: Install instagraal with test extras
         run: pip install ".[test]"
 
       - name: Run pytest
-        run: pytest -v --tb=short > test-results.txt 2>&1 || true
+        run: pytest -v --tb=short
 
       - name: Upload test results
         if: always()
@@ -153,9 +170,12 @@ jobs:
       - name: Terminate pods
         env:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
-          POD_ID:  ${{ needs.start-runners.outputs.pod-id }}
+          POD_ID: ${{ needs.start-runners.outputs.pod-id }}
         run: |
-          if [ -n "$POD_ID" ]; then
-            runpodctl pod delete "$POD_ID"
+          # Always try to clean up, even if output is empty
+          if [ -n "$POD_ID" ] && [ "$POD_ID" != "null" ]; then
+            runpodctl pod delete "$POD_ID" || true
             echo "Terminated pod: $POD_ID"
+          else
+            echo "WARNING: No pod ID found — check for orphaned pods!"
           fi
