@@ -30,49 +30,107 @@ jobs:
       pod-id: ${{ steps.launch.outputs.pod-id }}
     steps:
 
-      - name: Install runpodctl
-        run: |
-          mkdir -p ~/.local/bin
-          wget -q https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64 \
-            -O ~/.local/bin/runpodctl
-          chmod +x ~/.local/bin/runpodctl
-
       - name: Generate Runner Registration Token
         id: token
         run: |
           TOKEN=$(curl -s -X POST \
             -H "Authorization: token ${{ secrets.GH_PAT }}" \
             -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/js2264/instaGRAAL/actions/runners/registration-token \
+            https://api.github.com/repos/${{ github.repository }}/actions/runners/registration-token \
             | jq -r '.token')
           echo "::add-mask::$TOKEN"
           echo "registration_token=$TOKEN" >> "$GITHUB_OUTPUT"
 
-      - name: Launch pods
+      - name: Launch pod
         id: launch
         env:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
-          RUNPOD_TEMPLATE_ID: ${{ secrets.RUNPOD_TEMPLATE_ID_CUDA_12_4_1 }}
         run: |
           LABEL="runpod-${{ github.run_id }}"
           REG_TOKEN="${{ steps.token.outputs.registration_token }}"
-          ENV_JSON=$(jq -n -c \
+
+          # The startup command — defined right here, no template needed
+          read -r -d '' STARTUP_CMD << 'SCRIPT' || true
+          bash -lc '
+          set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends curl ca-certificates tar git
+          rm -rf /var/lib/apt/lists/*
+          id -u runner &>/dev/null || useradd -m -s /bin/bash runner
+          RUNNER_DIR=/opt/actions-runner
+          WORK_DIR=/workspace/_work
+          mkdir -p "$RUNNER_DIR" "$WORK_DIR"
+          chown -R runner:runner "$RUNNER_DIR" "$WORK_DIR"
+          if [ ! -f "$RUNNER_DIR/config.sh" ]; then
+            cd "$RUNNER_DIR"
+            RUNNER_VERSION=$(curl -fsSL https://api.github.com/repos/actions/runner/releases/latest | grep -oP "\"tag_name\":\s*\"v\K[^\"]+")
+            curl -fL -o actions-runner.tar.gz \
+              "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz"
+            tar xzf actions-runner.tar.gz
+            rm -f actions-runner.tar.gz
+            chown -R runner:runner "$RUNNER_DIR"
+          fi
+          cd "$RUNNER_DIR"
+          su - runner -c "
+            cd $RUNNER_DIR
+            ./config.sh \
+              --url https://github.com/${{ github.repository }} \
+              --token $RUNNER_TOKEN \
+              --name $LABEL \
+              --labels $LABEL \
+              --work $WORK_DIR \
+              --unattended --ephemeral
+            ./run.sh --once
+          "
+          '
+          SCRIPT
+
+          # Build the GraphQL mutation using jq for proper escaping
+          QUERY=$(jq -n -c \
+            --arg name "$LABEL" \
+            --arg image "runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04" \
+            --arg gpu "NVIDIA GeForce RTX 4090" \
+            --arg cmd "$STARTUP_CMD" \
             --arg token "$REG_TOKEN" \
             --arg label "$LABEL" \
-            '{"RUNNER_TOKEN": $token, "LABEL": $label}')
-          POD_JSON=$(runpodctl pod create \
-            --template-id $RUNPOD_TEMPLATE_ID \
-            --gpu-id "NVIDIA GeForce RTX 4090" \
-            --cloud-type SECURE \
-            --name "$LABEL" \
-            --env "$ENV_JSON" \
-            -o json)
-          POD_ID=$(echo "$POD_JSON" | jq -r .id)
+            '{
+              query: "mutation($input: PodFindAndDeployOnDemandInput!) { podFindAndDeployOnDemand(input: $input) { id imageName machine { gpuDisplayName } } }",
+              variables: {
+                input: {
+                  name: $name,
+                  imageName: $image,
+                  gpuTypeId: $gpu,
+                  cloudType: "SECURE",
+                  gpuCount: 1,
+                  containerDiskInGb: 20,
+                  volumeInGb: 0,
+                  volumeMountPath: "/workspace",
+                  ports: "8888/http,22/tcp",
+                  dockerArgs: $cmd,
+                  env: [
+                    { key: "RUNNER_TOKEN", value: $token },
+                    { key: "LABEL", value: $label }
+                  ]
+                }
+              }
+            }')
+
+          RESPONSE=$(curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $RUNPOD_API_KEY" \
+            -d "$QUERY" \
+            https://api.runpod.io/graphql)
+
+          echo "API response: $RESPONSE"
+
+          POD_ID=$(echo "$RESPONSE" | jq -r '.data.podFindAndDeployOnDemand.id')
           if [ -z "$POD_ID" ] || [ "$POD_ID" = "null" ]; then
-            echo "ERROR: Pod creation failed:"
-            echo "$POD_JSON"
+            echo "ERROR: Pod creation failed"
+            echo "$RESPONSE" | jq .
             exit 1
           fi
+
           echo "Created pod: $POD_ID  label: $LABEL"
           echo "label=$LABEL"   >> "$GITHUB_OUTPUT"
           echo "pod-id=$POD_ID" >> "$GITHUB_OUTPUT"
@@ -84,7 +142,7 @@ jobs:
           LABEL="${{ steps.launch.outputs.label }}"
           echo "Waiting for runner: $LABEL"
           STATUS=""
-          for i in $(seq 1 12); do
+          for i in $(seq 1 30); do
             STATUS=$(curl -fsSL \
               -H "Authorization: Bearer $GH_PAT" \
               -H "Accept: application/vnd.github+json" \
@@ -94,11 +152,11 @@ jobs:
               echo "  $LABEL is online."
               break
             fi
-            echo "  Attempt $i/12 - not online yet, retrying in 10s..."
+            echo "  Attempt $i/30 - not online yet, retrying in 10s..."
             sleep 10
           done
           if [ "$STATUS" != "online" ]; then
-            echo "ERROR: $LABEL did not come online within 2 minutes." >&2
+            echo "ERROR: $LABEL did not come online within 5 minutes." >&2
             exit 1
           fi
 
