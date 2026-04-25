@@ -1,6 +1,7 @@
-name: Test (GPU) (RunPod)
+name: Test (GPU)
 
 on:
+  workflow_dispatch:
   push:
     branches: [master, "js2264/*"]
 
@@ -19,7 +20,7 @@ jobs:
   # for cleanup.
   # ---------------------------------------------------------------------------
   start-runners:
-    name: Start RunPod GPU pods
+    name: Start pods
     runs-on: ubuntu-latest
     if: contains(github.event.head_commit.message, '[gpu]')
     outputs:
@@ -261,7 +262,7 @@ jobs:
   # Terminate ALL pods — always runs, even on failure/cancellation.
   # ---------------------------------------------------------------------------
   stop-runners:
-    name: Stop RunPod GPU pods
+    name: Stop pods
     runs-on: ubuntu-latest
     needs: [start-runners, test-gpu]
     if: always() && needs.start-runners.result != 'skipped'
