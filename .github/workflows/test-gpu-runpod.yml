@@ -138,29 +138,3 @@ jobs:
           path: |
             coverage.xml
             htmlcov/
-
-  # ---------------------------------------------------------------------------
-  # Terminate all pods - always runs, even on failure/cancellation.
-  # ---------------------------------------------------------------------------
-  stop-runners:
-    name: Stop RunPod GPU pods
-    runs-on: ubuntu-latest
-    needs: [start-runners, test-gpu]
-    if: always()
-    steps:
-      - name: Install runpodctl
-        run: |
-          mkdir -p ~/.local/bin
-          wget -q https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64 \
-            -O ~/.local/bin/runpodctl
-          chmod +x ~/.local/bin/runpodctl
-
-      - name: Terminate pods
-        env:
-          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
-          POD_ID_CUDA12:  ${{ needs.start-runners.outputs.pod-id-cuda12 }}
-        run: |
-          if [ -n "$POD_ID_CUDA12" ]; then
-            runpodctl pod delete "$POD_ID_CUDA12"
-            echo "Terminated pod: $POD_ID_CUDA12"
-          fi
