@@ -64,7 +64,6 @@ jobs:
             --gpu-id "NVIDIA GeForce RTX 4090" \
             --cloud-type SECURE \
             --name "$LABEL" \
-            # env should be as JSON string,
             --env "$ENV_JSON" \
             -o json)
           POD_ID=$(echo "$POD_JSON" | jq -r .id)
@@ -161,7 +160,6 @@ jobs:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
           POD_ID_CUDA12:  ${{ needs.start-runners.outputs.pod-id-cuda12 }}
         run: |
-          runpodctl config --apiKey "$RUNPOD_API_KEY"
           if [ -n "$POD_ID_CUDA12" ]; then
             runpodctl pod delete "$POD_ID_CUDA12"
             echo "Terminated pod: $POD_ID_CUDA12"
