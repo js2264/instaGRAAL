@@ -54,13 +54,18 @@ jobs:
           RUNPOD_TEMPLATE_ID: ${{ secrets.RUNPOD_TEMPLATE_ID_CUDA_12_9_1 }}
         run: |
           LABEL="runner-${RUNPOD_TEMPLATE_ID}"
+          REG_TOKEN="${{ steps.token.outputs.registration_token }}"
+          ENV_JSON=$(jq -n -c \
+            --arg token "$REG_TOKEN" \
+            --arg label "$LABEL" \
+            '{"RUNNER_TOKEN": $token, "LABEL": $label}')
           POD_JSON=$(runpodctl pod create \
             --template-id $RUNPOD_TEMPLATE_ID \
             --gpu-id "NVIDIA GeForce RTX 4090" \
             --cloud-type SECURE \
             --name "$LABEL" \
-            --env "RUNNER_TOKEN=${{ steps.token.outputs.registration_token }}" \
-            --env "LABEL=$LABEL" \
+            # env should be as JSON string,
+            --env "$ENV_JSON" \
             -o json)
           POD_ID=$(echo "$POD_JSON" | jq -r .id)
           echo "Created pod: $POD_ID  label: $LABEL"
