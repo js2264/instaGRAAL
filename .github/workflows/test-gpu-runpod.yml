@@ -268,7 +268,7 @@ jobs:
     name: Stop RunPod GPU pods
     runs-on: ubuntu-latest
     needs: [start-runners, test-gpu]
-    if: always()
+    if: always() && needs.start-runners.result != 'skipped'
     steps:
       - name: Install runpodctl
         run: |
