@@ -53,19 +53,15 @@ jobs:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
           RUNPOD_TEMPLATE_ID: ${{ secrets.RUNPOD_TEMPLATE_ID_CUDA_12_9_1 }}
         run: |
-          runpodctl config --apiKey "$RUNPOD_API_KEY"
-
-          # Label is fixed - baked into the template startup command.
           LABEL="runner-${RUNPOD_TEMPLATE_ID}"
-
           POD_JSON=$(runpodctl pod create \
             --template-id $RUNPOD_TEMPLATE_ID \
             --gpu-id "NVIDIA GeForce RTX 4090" \
             --cloud-type SECURE \
             --name "$LABEL" \
-            --env "RUNNER_TOKEN=${{ steps.token.outputs.registration_token }} LABEL=$LABEL" \
+            --env "RUNNER_TOKEN=${{ steps.token.outputs.registration_token }}" \
+            --env "LABEL=$LABEL" \
             -o json)
-
           POD_ID=$(echo "$POD_JSON" | jq -r .id)
           echo "Created pod: $POD_ID  label: $LABEL"
           echo "label-cuda12=$LABEL"   >> "$GITHUB_OUTPUT"
