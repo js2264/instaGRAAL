@@ -1,8 +1,6 @@
 name: Test (GPU) (RunPod)
 
 on:
-  pull_request:
-    branches: [master, "js2264/*"]
   push:
     branches: [master, "js2264/*"]
 
@@ -23,6 +21,7 @@ jobs:
   start-runners:
     name: Start RunPod GPU pods
     runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, '[gpu]')
     outputs:
       matrix:  ${{ steps.launch-all.outputs.matrix }}
       pod-ids: ${{ steps.launch-all.outputs.pod-ids }}
@@ -59,10 +58,6 @@ jobs:
             { "python-version": "3.11", "cuda-version": "12.1.1", "image": "nvidia/cuda:12.1.1-devel-ubuntu22.04" },
             { "python-version": "3.12", "cuda-version": "12.1.1", "image": "nvidia/cuda:12.1.1-devel-ubuntu22.04" },
 
-            { "python-version": "3.10", "cuda-version": "12.4.1", "image": "runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04" },
-            { "python-version": "3.11", "cuda-version": "12.4.1", "image": "runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04" },
-            { "python-version": "3.12", "cuda-version": "12.4.1", "image": "runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04" },
-
             { "python-version": "3.10", "cuda-version": "12.4.1", "image": "nvidia/cuda:12.4.1-devel-ubuntu22.04" },
             { "python-version": "3.11", "cuda-version": "12.4.1", "image": "nvidia/cuda:12.4.1-devel-ubuntu22.04" },
             { "python-version": "3.12", "cuda-version": "12.4.1", "image": "nvidia/cuda:12.4.1-devel-ubuntu22.04" },
@@ -80,7 +75,7 @@ jobs:
           set -euo pipefail
           export DEBIAN_FRONTEND=noninteractive
           apt-get update
-          apt-get install -y --no-install-recommends curl ca-certificates tar git
+          apt-get install -y --no-install-recommends curl ca-certificates tar git libicu-dev
           rm -rf /var/lib/apt/lists/*
           id -u runner &>/dev/null || useradd -m -s /bin/bash runner
           RUNNER_DIR=/opt/actions-runner
@@ -218,6 +213,7 @@ jobs:
     name: Test (py${{ matrix.python-version }} / CUDA ${{ matrix.cuda-version }})
     needs: start-runners
     runs-on: ${{ matrix.label }}
+    if: contains(github.event.head_commit.message, '[gpu]')
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.start-runners.outputs.matrix) }}
