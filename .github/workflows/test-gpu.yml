@@ -39,6 +39,28 @@ jobs:
           echo "::add-mask::$TOKEN"
           echo "registration_token=$TOKEN" >> "$GITHUB_OUTPUT"
 
+      - name: Clean up stale runners
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          RUNNERS=$(curl -fsSL \
+            -H "Authorization: Bearer $GH_PAT" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runners")
+
+          echo "$RUNNERS" | jq -r '
+            .runners[]
+            | select(.name | startswith("runpod-"))
+            | select(.status == "offline")
+            | "\(.id) \(.name)"
+          ' | while read -r ID NAME; do
+            echo "Removing stale runner: $NAME (id=$ID)"
+            curl -fsSL -X DELETE \
+              -H "Authorization: Bearer $GH_PAT" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/runners/$ID" || true
+          done
+
       - name: Launch all pods
         id: launch-all
         env:
@@ -47,6 +69,8 @@ jobs:
           REG_TOKEN="${{ steps.token.outputs.registration_token }}"
           RUN_ID="${{ github.run_id }}"
           REPO="${{ github.repository }}"
+          RUN_ID="${{ github.run_id }}"
+          ATTEMPT="${{ github.run_attempt }}"
 
           # ── Edit this list to add/remove combos ──────────────────────
           # Each pod costs ~$0.69/hr (RTX 4090), so keep it lean.
@@ -287,4 +311,30 @@ jobs:
             runpodctl pod get "$POD_ID" || true
             runpodctl pod delete "$POD_ID" || true
             echo "Terminated pod: $POD_ID"
+          done
+
+      - name: Deregister runners from GitHub
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          MATRIX='${{ needs.start-runners.outputs.matrix }}'
+          if [ -z "$MATRIX" ] || [ "$MATRIX" = "null" ]; then
+            exit 0
+          fi
+
+          LABELS=$(echo "$MATRIX" | jq -r '.include[].label')
+          for LABEL in $LABELS; do
+            RUNNER_ID=$(curl -fsSL \
+              -H "Authorization: Bearer $GH_PAT" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/runners" \
+              | jq -r ".runners[] | select(.name == \"$LABEL\") | .id")
+
+            if [ -n "$RUNNER_ID" ] && [ "$RUNNER_ID" != "null" ]; then
+              curl -fsSL -X DELETE \
+                -H "Authorization: Bearer $GH_PAT" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${{ github.repository }}/actions/runners/$RUNNER_ID" || true
+              echo "Deregistered runner: $LABEL (id=$RUNNER_ID)"
+            fi
           done
