@@ -2,9 +2,7 @@ name: Docker
 
 on:
   push:
-    branches: [master, "js2264/*"]
-  pull_request:
-    branches: [master, "js2264/*"]
+    branches: [master]
 
 permissions:
   contents: read

@@ -3,14 +3,14 @@ name: Test (GPU)
 on:
   workflow_dispatch:
   push:
-    branches: [master, "js2264/*"]
+  pull_request:
 
 concurrency:
   group: gpu-tests-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
 
@@ -264,14 +264,14 @@ jobs:
         run: pip install ".[test]"
 
       - name: Run pytest
-        run: pytest -v --tb=short
+        run: pytest -v --tb=short --junitxml=test-results.xml
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results-py${{ matrix.python-version }}-cuda${{ matrix.cuda-version }}
-          path: test-results.txt
+          path: test-results.xml
 
       - name: Upload coverage report
         if: always()
