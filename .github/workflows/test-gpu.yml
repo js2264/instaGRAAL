@@ -22,7 +22,7 @@ jobs:
   start-runners:
     name: Start pods
     runs-on: ubuntu-latest
-    if: contains(github.event.head_commit.message, '[gpu]')
+    if: github.event_name == 'pull_request' || contains(github.event.head_commit.message, '[gpu]')
     outputs:
       matrix:  ${{ steps.launch-all.outputs.matrix }}
       pod-ids: ${{ steps.launch-all.outputs.pod-ids }}
@@ -234,7 +234,7 @@ jobs:
     name: Test (py${{ matrix.python-version }} / CUDA ${{ matrix.cuda-version }})
     needs: start-runners
     runs-on: ${{ matrix.label }}
-    if: contains(github.event.head_commit.message, '[gpu]')
+    if: github.event_name == 'pull_request' || contains(github.event.head_commit.message, '[gpu]')
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.start-runners.outputs.matrix) }}
