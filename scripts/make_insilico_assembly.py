@@ -31,9 +31,9 @@ from Bio.SeqRecord import SeqRecord
 # ---------------------------------------------------------------------------
 
 RANDOM_SEED = 42
-BREAK_RATE = 1.5  # expected breaks per Mb -> realistic long-read assembly
+BREAK_RATE = 10  # expected breaks per Mb -> realistic long-read assembly
 # S. cerevisiae ~12.5 Mb x 1.5 ~= 19 breaks -> ~30 contigs
-MIN_CONTIG_LEN = 1_000  # discard fragments shorter than this (bp)
+MIN_CONTIG_LEN = 100  # discard fragments shorter than this (bp)
 
 
 # ---------------------------------------------------------------------------
@@ -77,6 +77,10 @@ def fragment_genome(
                     )
                 )
                 idx += 1
+
+    rng.shuffle(contigs)
+    for new_idx, contig in enumerate(contigs, 1):
+        contig.id = f"contig_{new_idx:03d}"
 
     return contigs
 
