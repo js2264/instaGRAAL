@@ -9,21 +9,39 @@
 [![License: GPLv3](https://img.shields.io/badge/License-GPL%203-0298c3.svg)](https://opensource.org/licenses/GPL-3.0)
 
 Large genome reassembly based on Hi-C data (continuation and partial rewrite of [GRAAL](https://github.com/koszullab/GRAAL)).
-Requires **Python 3.8+** and an **NVIDIA GPU** with the CUDA toolkit.
+It relies on `pycuda` for GPU-accelerated MCMC scaffolding and `cooler` for multi-resolution contact map generation.
+Requires **Python 3.10-3.12** and an **NVIDIA GPU** with the **CUDA toolkit** installed.
 
 ## Installation
+
+`instaGRAAL` is available on PyPI:
 
 ```sh
 pip install instagraal
 ```
 
-With Docker (no local CUDA setup needed):
+Pre-built Docker images are also available with `python3.12` and various `CUDA` versions:
 
 ```sh
-docker build -t instagraal .
-docker run --gpus all -v /path/to/data:/work instagraal \
+docker run --gpus all -v /path/to/data:/work ghcr.io/koszullab/instagraal:latest-cuda11.8.0 \
   instagraal-endtoend assembly.fa reads.pairs -e DpnII -o out
 ```
+
+**Note: Choosing the right CUDA version**
+
+The CUDA version in the container must be compatible with the NVIDIA driver
+installed on your host machine. Check your driver's maximum supported CUDA version by running:
+
+```sh
+nvidia-smi
+```
+
+Then select a container with that CUDA version or lower. For example, if your
+driver supports up to CUDA 11.8, use `ghcr.io/koszullab/instagraal:latest-cuda11.8.0`.
+
+When in doubt, `latest-cuda11.8.0` is the safest choice — it is
+compatible with most drivers from the last few years and supports
+a wide range of GPU generations.
 
 ## Usage
 
