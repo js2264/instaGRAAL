@@ -60,7 +60,7 @@ from ..post import run_post
     "--balance/--no-balance",
     default=True,
     show_default=True,
-    help=("Apply ICE balancing at each zoom level.  " "Enabled by default; use --no-balance to skip."),
+    help=("Apply ICE balancing at each zoom level.  Enabled by default; use --no-balance to skip."),
 )
 @click.option(
     "--balance-args",

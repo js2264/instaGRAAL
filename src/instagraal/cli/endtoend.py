@@ -77,7 +77,7 @@ def _check_gpu(device: int) -> None:
         raise click.ClickException(f"Requested device {device} but only {n_devices} device(s) available (0-{n_devices - 1}).")
 
     dev = cuda.Device(device)
-    click.echo(f"  GPU {device}: {dev.name()} ({dev.total_memory() // 1024 ** 2} MB)")
+    click.echo(f"  GPU {device}: {dev.name()} ({dev.total_memory() // 1024**2} MB)")
     _check_nvcc()
 
 
@@ -323,7 +323,7 @@ def _run_endtoend(
     default=DEFAULT_CYCLES,
     show_default=True,
     type=int,
-    help=("Number of MCMC iterations per bin. " "A high number has diminishing returns but a minimum is needed for convergence."),
+    help=("Number of MCMC iterations per bin. A high number has diminishing returns but a minimum is needed for convergence."),
 )
 @click.option(
     "-r",
@@ -342,7 +342,7 @@ def _run_endtoend(
     default=1.0,
     show_default=True,
     type=float,
-    help=("Number of standard deviations below the mean coverage " "below which fragments are filtered out prior to binning."),
+    help=("Number of standard deviations below the mean coverage below which fragments are filtered out prior to binning."),
 )
 @click.option(
     "-N",
@@ -421,7 +421,7 @@ def _run_endtoend(
 @click.option(
     "--cool-name",
     default=None,
-    help=("Base name for the output .cool/.mcool files. " "Forwarded to both instagraal-pre and instagraal-post."),
+    help=("Base name for the output .cool/.mcool files. Forwarded to both instagraal-pre and instagraal-post."),
 )
 @click.option(
     "--simple",

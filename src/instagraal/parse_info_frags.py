@@ -93,7 +93,7 @@ def parse_bed(bed_file):
             elif strand == "-":
                 ori = -1
             else:
-                raise ValueError("Error when parsing strand " "orientation: {}".format(strand))
+                raise ValueError("Error when parsing strand orientation: {}".format(strand))
 
             if int(qual) > 0:
                 bed_bin = [query, -2, int(start), int(end), ori]
@@ -493,7 +493,6 @@ def correct_spurious_inversions(scaffolds, criterion="colinear"):
             current_bin = scaffold[0]
             block_buffer = []
             for my_bin in scaffold:
-
                 if not block_buffer:
                     new_bin = copy.deepcopy(my_bin)
                     block_buffer.append(new_bin)
@@ -553,7 +552,6 @@ def rearrange_intra_scaffolds(scaffolds):
         my_blocks = []
 
         for _, my_block in itertools.groupby(scaffold, operator.itemgetter(0)):
-
             my_bins = list(my_block)
             my_blocks.append(my_bins)
             block_length = len(my_bins)
@@ -590,7 +588,6 @@ def reorient_consecutive_blocks(scaffolds, mode="blocks"):
             my_bins = list(my_block)
 
             if mode == "sequences":
-
                 if len(my_bins) < 2:
                     new_scaffold.append(my_bins[0])
                     continue
@@ -737,7 +734,6 @@ def find_lost_dna(init_fasta, scaffolds, output_file=None):
         return base - key
 
     for record in my_records:
-
         fasta_dict[record.id] = record.seq
 
         remaining_regions_ordered = range(len(record))
@@ -750,7 +746,6 @@ def find_lost_dna(init_fasta, scaffolds, output_file=None):
         sorted_regions = sorted(remaining_regions)
 
         for _, g in itertools.groupby(enumerate(sorted_regions), consecutiveness):
-
             swath = list(map(operator.itemgetter(1), g))
             start = min(swath)
             end = max(swath) + 1
@@ -762,7 +757,6 @@ def find_lost_dna(init_fasta, scaffolds, output_file=None):
                 that_which_was_removed[record.id] = [my_bin]
 
     if output_file:
-
         try:
             with open(output_file, "w") as output_handle:
                 for name, chunks in that_which_was_removed.items():
@@ -800,7 +794,6 @@ def integrate_lost_dna(scaffolds, lost_dna_positions):
                 end = my_bin[3]
                 ori = my_bin[4]
                 for lost_bin in lost_dna_chunk:
-
                     lost_start = lost_bin[2]
                     lost_end = lost_bin[3]
 

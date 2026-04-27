@@ -86,10 +86,10 @@ def _check_gpu(device: int) -> None:
     if n_devices == 0:
         raise click.ClickException("No CUDA devices found.  instagraal requires at least one GPU.")
     if device >= n_devices:
-        raise click.ClickException(f"Requested device {device} but only {n_devices} device(s) available " f"(0-{n_devices - 1}).")
+        raise click.ClickException(f"Requested device {device} but only {n_devices} device(s) available (0-{n_devices - 1}).")
 
     dev = cuda.Device(device)
-    click.echo(f"  GPU {device}: {dev.name()} " f"({dev.total_memory() // 1024 ** 2} MB)")
+    click.echo(f"  GPU {device}: {dev.name()} ({dev.total_memory() // 1024**2} MB)")
 
     # Check for nvcc availability
     _check_nvcc()
@@ -341,21 +341,13 @@ def _run_test(
     "--fasta",
     default=None,
     type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=pathlib.Path),
-    help=(
-        "Path to manually downloaded FASTA file. "
-        "If provided, skips downloading from Zenodo. "
-        "Useful for offline environments."
-    ),
+    help=("Path to manually downloaded FASTA file. If provided, skips downloading from Zenodo. Useful for offline environments."),
 )
 @click.option(
     "--pairs",
     default=None,
     type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=pathlib.Path),
-    help=(
-        "Path to manually downloaded pairs file. "
-        "If provided, skips downloading from Zenodo. "
-        "Useful for offline environments."
-    ),
+    help=("Path to manually downloaded pairs file. If provided, skips downloading from Zenodo. Useful for offline environments."),
 )
 @click.option(
     "--device",
