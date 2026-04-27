@@ -12,6 +12,7 @@ from ..parse_info_frags import (
     DEFAULT_NEW_INFO_FRAGS_NAME,
     correct_spurious_inversions,
     find_lost_dna,
+    plot_contig_composition,
     integrate_lost_dna,
     parse_info_frags,
     rearrange_intra_scaffolds,
@@ -129,28 +130,38 @@ def main(
 
     elif "singleton" in mode:
         new_scaffolds = remove_spurious_insertions(scaffolds)
-        write_info_frags(new_scaffolds, output=str(output_dir / DEFAULT_NEW_INFO_FRAGS_NAME))
+        info_frags_file = str(output_dir / DEFAULT_NEW_INFO_FRAGS_NAME)
+        write_info_frags(new_scaffolds, output=info_frags_file)
+        plot_contig_composition(info_frags_file, output_path=output_dir / "contig_composition.png")
 
     elif mode == "inversion":
         effective_criterion = criterion or DEFAULT_CRITERION
         new_scaffolds = correct_spurious_inversions(scaffolds=scaffolds, criterion=effective_criterion)
-        write_info_frags(new_scaffolds, output=str(output_dir / DEFAULT_NEW_INFO_FRAGS_NAME))
+        info_frags_file = str(output_dir / DEFAULT_NEW_INFO_FRAGS_NAME)
+        write_info_frags(new_scaffolds, output=info_frags_file)
+        plot_contig_composition(info_frags_file, output_path=output_dir / "contig_composition.png")
 
     elif mode == "inversion2":
         effective_criterion = criterion or DEFAULT_CRITERION_2
         new_scaffolds = reorient_consecutive_blocks(scaffolds=scaffolds, mode=effective_criterion)
-        write_info_frags(new_scaffolds, output=str(output_dir / DEFAULT_NEW_INFO_FRAGS_NAME))
+        info_frags_file = str(output_dir / DEFAULT_NEW_INFO_FRAGS_NAME)
+        write_info_frags(new_scaffolds, output=info_frags_file)
+        plot_contig_composition(info_frags_file, output_path=output_dir / "contig_composition.png")
 
     elif "rearrange" in mode:
         new_scaffolds = rearrange_intra_scaffolds(scaffolds=scaffolds)
-        write_info_frags(new_scaffolds, output=str(output_dir / DEFAULT_NEW_INFO_FRAGS_NAME))
+        info_frags_file = str(output_dir / DEFAULT_NEW_INFO_FRAGS_NAME)
+        write_info_frags(new_scaffolds, output=info_frags_file)
+        plot_contig_composition(info_frags_file, output_path=output_dir / "contig_composition.png")
 
     elif "reincorporation" in mode:
         if init_fasta is None:
             raise click.UsageError("A reference FASTA file must be provided (--fasta) for 'reincorporation' mode.")
         removed = find_lost_dna(init_fasta=str(init_fasta), scaffolds=scaffolds)
         new_scaffolds = integrate_lost_dna(scaffolds=scaffolds, lost_dna_positions=removed)
-        write_info_frags(new_scaffolds, output=str(output_dir / DEFAULT_NEW_INFO_FRAGS_NAME))
+        info_frags_file = str(output_dir / DEFAULT_NEW_INFO_FRAGS_NAME)
+        write_info_frags(new_scaffolds, output=info_frags_file)
+        plot_contig_composition(info_frags_file, output_path=output_dir / "contig_composition.png")
 
     elif "polishing" in mode:
         if init_fasta is None:
@@ -168,4 +179,5 @@ def main(
             output=genome_file,
             junction=junction,
         )
+        plot_contig_composition(info_frags_file, output_path=output_dir / "contig_composition.png")
         print_assembly_stats(genome_file, label="Assembly (polishing mode)")
