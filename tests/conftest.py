@@ -20,6 +20,24 @@ from instagraal.cli.pre import main as pre_main
 # Force a non-interactive backend before any test file imports matplotlib.pyplot
 matplotlib.use("Agg")
 
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--no-gpu",
+        action="store_true",
+        default=False,
+        help="Skip GPU-dependent tests (overrides auto-detection)",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--no-gpu"):
+        skip = pytest.mark.skip(reason="--no-gpu flag provided")
+        for item in items:
+            if item.fspath.basename == "test_instagraal_gpu.py":
+                item.add_marker(skip)
+
+
 REPO_ROOT = pathlib.Path(__file__).parent.parent
 TEST_DATA = REPO_ROOT / "tests" / "data"
 
