@@ -64,7 +64,6 @@ polish: $(POLISH_SENTINEL)
 
 $(POLISH_SENTINEL): $(MCMC_SENTINEL)
 	instagraal-polish \
-		--mode polishing \
 		--input $(MCMC_DIR)/info_frags.txt \
 		--fasta $(FASTA) \
 		--output-dir $(POLISH_DIR)

@@ -267,8 +267,6 @@ def _run_test(
     _run_cmd(
         [
             cmd("instagraal-polish"),
-            "--mode",
-            "polishing",
             "--input",
             info_frags,
             "--fasta",

@@ -197,7 +197,7 @@ instagraal-polish -h
 The most common use case is to run all curation procedures at once:
 
 ```sh
-instagraal-polish -m polishing -i info_frags.txt -f reference.fasta -o polished_assembly.fa
+instagraal-polish -i info_frags.txt -f reference.fasta -o polished_assembly.fa
 ```
 
 ## Troubleshooting

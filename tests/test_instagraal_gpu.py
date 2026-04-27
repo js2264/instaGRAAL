@@ -662,7 +662,7 @@ def test_basic_fragment_initiate():
 
 @pytest.fixture(scope="session")
 def polish_out(mcmc_out, tmp_path_factory):
-    """Run ``instagraal-polish --mode polishing`` on the GPU-scaffolded output.
+    """Run ``instagraal-polish`` on the GPU-scaffolded output.
 
     Uses the real ``info_frags.txt`` produced by ``instagraal`` together with
     the original reference FASTA so the full polishing pipeline is exercised
@@ -676,8 +676,6 @@ def polish_out(mcmc_out, tmp_path_factory):
     result = runner.invoke(
         polish_main,
         [
-            "--mode",
-            "polishing",
             "--input",
             str(mcmc_out / "info_frags.txt"),
             "--fasta",

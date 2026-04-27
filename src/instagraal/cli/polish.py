@@ -40,11 +40,10 @@ POLISHED_GENOME_NAME = "polished_genome.fa"
 @click.option(
     "-m",
     "--mode",
-    default="polishing",
+    default=None,
     type=click.Choice(VALID_MODES, case_sensitive=False),
     help=(
-        "\b\nProcessing mode:\n"
-        "  polishing       Full pipeline: rearrange + inversion2 + reincorporation + fasta.\n"
+        "\b\nProcessing mode (default: run full polishing pipeline):\n"
         "  rearrange       Rearrange intra-scaffold blocks.\n"
         "  inversion2      Correct spurious inversions (blocks criterion).\n"
         "  reincorporation Reincorporate lost DNA from reference.\n"
@@ -68,8 +67,8 @@ POLISHED_GENOME_NAME = "polished_genome.fa"
     default=None,
     type=click.Path(exists=True, dir_okay=False, path_type=pathlib.Path),
     help=(
-        "The initial reference FASTA file, before running instaGRAAL.",
-        "(required for 'fasta', 'reincorporation', and 'polishing' modes)",
+        "The initial reference FASTA file, before running instaGRAAL. "
+        "(required for 'fasta', 'reincorporation', and 'polishing' modes)"
     ),
 )
 @click.option(
@@ -110,7 +109,7 @@ POLISHED_GENOME_NAME = "polished_genome.fa"
     help="Junction sequence inserted between stitched bins.",
 )
 def main(
-    mode: str,
+    mode: str | None,
     info_frags: pathlib.Path,
     init_fasta: pathlib.Path | None,
     output_dir: pathlib.Path,
@@ -119,7 +118,13 @@ def main(
     min_scaffold_length: int,
     junction: str,
 ) -> None:
-    """Polish and post-process instaGRAAL assemblies."""
+    """Polish and post-process instaGRAAL assemblies.
+
+    By default (no --mode given), runs the full polishing pipeline:
+    rearrange → inversion2 → reincorporation → fasta.
+    A reference FASTA (--fasta) is required for this default pipeline.
+    """
+    mode = mode or "polishing"
     output_dir = pathlib.Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     scaffolds = {
