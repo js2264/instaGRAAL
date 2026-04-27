@@ -5,6 +5,7 @@ Integration tests use the session-scoped ``post_output_dir`` fixture from
 conftest.py, which runs ``instagraal-post`` against the committed test data.
 """
 
+import gzip
 import pathlib
 
 import cooler
@@ -15,6 +16,9 @@ from instagraal.post import (
     _build_new_bins,
     _pos_to_new_bin,
     _pos_to_new_coords,
+    _scaffold_bins_from_extended,
+    _fragment_pixels_to_scaffold_pixels,
+    _binnify,
 )
 
 # ---------------------------------------------------------------------------
@@ -184,6 +188,61 @@ def test_pos_to_new_coords_returns_none_unknown_chrom(liftover_index):
     assert _pos_to_new_coords("ghost", 1, liftover_index) is None
 
 
+# ---------------------------------------------------------------------------
+# _scaffold_bins_from_extended
+# ---------------------------------------------------------------------------
+
+
+def test_scaffold_bins_one_row_per_scaffold():
+    bins = _build_new_bins(SYNTHETIC_SCAFFOLDS, junction_len=0)
+    scaffold_bins = _scaffold_bins_from_extended(bins)
+    assert len(scaffold_bins) == len(SYNTHETIC_SCAFFOLDS)
+    assert list(scaffold_bins["chrom"]) == list(SYNTHETIC_SCAFFOLDS.keys())
+
+
+def test_scaffold_bins_span_whole_scaffold():
+    bins = _build_new_bins(SYNTHETIC_SCAFFOLDS, junction_len=0)
+    scaffold_bins = _scaffold_bins_from_extended(bins)
+    # scaffold_A: two fragments [0,100) [100,200) → end = 200
+    row_a = scaffold_bins[scaffold_bins["chrom"] == "scaffold_A"].iloc[0]
+    assert row_a["start"] == 0
+    assert row_a["end"] == 200
+
+
+# ---------------------------------------------------------------------------
+# _fragment_pixels_to_scaffold_pixels
+# ---------------------------------------------------------------------------
+
+
+def test_fragment_pixels_to_scaffold_pixels_sums_correctly():
+    import pandas as pd
+
+    bins = _build_new_bins(SYNTHETIC_SCAFFOLDS, junction_len=0)
+    scaffold_bins = _scaffold_bins_from_extended(bins)
+    # Two pixels on scaffold_A (bins 0 and 1 both belong to scaffold_A)
+    fragment_pixels = pd.DataFrame({"bin1_id": [0, 0], "bin2_id": [0, 1], "count": [3, 5]})
+    sp = _fragment_pixels_to_scaffold_pixels(fragment_pixels, bins, scaffold_bins)
+    # Both pixels map to scaffold_A (idx 0) self-contact
+    assert len(sp) == 1
+    assert int(sp["count"].iloc[0]) == 8
+
+
+# ---------------------------------------------------------------------------
+# _binnify
+# ---------------------------------------------------------------------------
+
+
+def test_binnify_single_chrom():
+    bins = _binnify({"chrA": 250}, 100)
+    assert len(bins) == 3  # [0,100), [100,200), [200,250)
+    assert int(bins["end"].iloc[-1]) == 250
+
+
+def test_binnify_preserves_chrom_order():
+    bins = _binnify({"chrB": 100, "chrA": 100}, 100)
+    assert list(bins["chrom"]) == ["chrB", "chrA"]
+
+
 # ===========================================================================
 # Integration tests - use committed test data via post_output_dir fixture
 # ===========================================================================
@@ -193,65 +252,118 @@ def test_post_output_files_exist(post_output_dir):
     """All expected output files are produced."""
     stem = "yeast"
     for fname in (
-        f"{stem}.cool",
-        f"{stem}.mcool",
-        f"{stem}.pairs",
-        f"{stem}_hic_map.png",
+        f"{stem}_contigs.cool",
+        f"{stem}_scaffolds.cool",
+        f"{stem}_scaffolds_binned.mcool",
+        f"{stem}_lifted.pairs.gz",
+        f"{stem}_contigs.png",
+        f"{stem}_scaffolds.png",
+        f"{stem}_ps_curves.png",
     ):
         assert (post_output_dir / fname).exists(), f"Missing output: {fname}"
 
 
 # ---------------------------------------------------------------------------
-# cool file
+# _contigs.cool
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture(scope="module")
-def post_cool(post_output_dir):
-    return cooler.Cooler(str(post_output_dir / "yeast.cool"))
+def contigs_cool(post_output_dir):
+    return cooler.Cooler(str(post_output_dir / "yeast_contigs.cool"))
 
 
-def test_post_cool_has_bins(post_cool):
-    assert post_cool.info["nbins"] > 0
+def test_contigs_cool_has_bins(contigs_cool):
+    assert contigs_cool.info["nbins"] > 0
 
 
-def test_post_cool_has_pixels(post_cool):
-    assert post_cool.info["nnz"] > 0
+def test_contigs_cool_has_pixels(contigs_cool):
+    assert contigs_cool.info["nnz"] > 0
 
 
-def test_post_cool_bins_non_overlapping(post_cool):
-    bins = post_cool.bins()[:]
-    for _chrom, grp in bins.groupby("chrom", sort=False):
-        starts = grp["start"].to_numpy()
-        ends = grp["end"].to_numpy()
-        assert (ends[:-1] <= starts[1:]).all(), f"Overlapping bins on {_chrom}"
+def test_contigs_cool_bins_are_whole_contigs(contigs_cool):
+    """Every bin should start at 0 (each bin = one entire contig)."""
+    bins = contigs_cool.bins()[:]
+    assert (bins["start"] == 0).all(), "all contig bins must start at 0"
 
 
-def test_post_cool_pixels_upper_triangular(post_cool):
-    pixels = post_cool.pixels()[:]
+def test_contigs_cool_pixels_upper_triangular(contigs_cool):
+    pixels = contigs_cool.pixels()[:]
     assert (pixels["bin1_id"] <= pixels["bin2_id"]).all()
 
 
-def test_post_cool_pixel_counts_positive(post_cool):
-    pixels = post_cool.pixels()[:]
+def test_contigs_cool_pixel_counts_positive(contigs_cool):
+    pixels = contigs_cool.pixels()[:]
     assert (pixels["count"] > 0).all()
 
 
 # ---------------------------------------------------------------------------
-# mcool file
+# _scaffolds.cool
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def scaffolds_cool(post_output_dir):
+    return cooler.Cooler(str(post_output_dir / "yeast_scaffolds.cool"))
+
+
+def test_scaffolds_cool_has_bins(scaffolds_cool):
+    assert scaffolds_cool.info["nbins"] > 0
+
+
+def test_scaffolds_cool_one_bin_per_scaffold(scaffolds_cool):
+    """Number of bins must equal number of chromosomes (one bin per scaffold)."""
+    assert scaffolds_cool.info["nbins"] == scaffolds_cool.info["nchroms"]
+
+
+def test_scaffolds_cool_bins_are_whole_scaffolds(scaffolds_cool):
+    bins = scaffolds_cool.bins()[:]
+    chroms = scaffolds_cool.chroms()[:]
+    # Each scaffold should have exactly one bin spanning [0, scaffold_length]
+    for _, row in chroms.iterrows():
+        chrom_bins = bins[bins["chrom"] == row["name"]]
+        assert len(chrom_bins) == 1, f"scaffold {row['name']} must have exactly 1 bin"
+        assert int(chrom_bins["start"].iloc[0]) == 0
+        assert int(chrom_bins["end"].iloc[0]) == int(row["length"])
+
+
+def test_scaffolds_cool_pixels_upper_triangular(scaffolds_cool):
+    pixels = scaffolds_cool.pixels()[:]
+    assert (pixels["bin1_id"] <= pixels["bin2_id"]).all()
+
+
+def test_scaffolds_cool_pixel_counts_positive(scaffolds_cool):
+    pixels = scaffolds_cool.pixels()[:]
+    assert (pixels["count"] > 0).all()
+
+
+# ---------------------------------------------------------------------------
+# mcool
 # ---------------------------------------------------------------------------
 
 
 def test_post_mcool_has_resolutions(post_output_dir):
-    mcool_path = str(post_output_dir / "yeast.mcool")
+    mcool_path = str(post_output_dir / "yeast_scaffolds_binned.mcool")
     resolutions = cooler.fileops.list_coolers(mcool_path)
     assert len(resolutions) >= 1, "mcool contains no resolutions"
 
 
 def test_post_mcool_10000_readable(post_output_dir):
-    uri = str(post_output_dir / "yeast.mcool") + "::resolutions/10000"
+    uri = str(post_output_dir / "yeast_scaffolds_binned.mcool") + "::resolutions/10000"
     clr = cooler.Cooler(uri)
     assert clr.info["nbins"] > 0
+
+
+def test_post_mcool_bins_are_fixed_size(post_output_dir):
+    """Bins in the mcool (except the last on each chrom) must have uniform size."""
+    uri = str(post_output_dir / "yeast_scaffolds_binned.mcool") + "::resolutions/10000"
+    clr = cooler.Cooler(uri)
+    bins = clr.bins()[:]
+    for chrom, grp in bins.groupby("chrom", sort=False):
+        sizes = (grp["end"] - grp["start"]).to_numpy()
+        # All bins except the last must be exactly 10000 bp
+        if len(sizes) > 1:
+            assert (sizes[:-1] == 10000).all(), f"non-uniform bin sizes on {chrom}"
 
 
 # ---------------------------------------------------------------------------
@@ -261,7 +373,8 @@ def test_post_mcool_10000_readable(post_output_dir):
 
 @pytest.fixture(scope="module")
 def lifted_pairs_lines(post_output_dir):
-    return (post_output_dir / "yeast.pairs").read_text().splitlines()
+    with gzip.open(post_output_dir / "yeast_lifted.pairs.gz", "rt") as fh:
+        return fh.read().splitlines()
 
 
 def test_lifted_pairs_has_header(lifted_pairs_lines):
@@ -319,16 +432,22 @@ def test_lifted_pairs_positions_positive(lifted_pairs_lines):
 
 
 # ---------------------------------------------------------------------------
-# HiC map PNG
+# HiC map PNGs
 # ---------------------------------------------------------------------------
 
 
-def test_post_hic_map_png_valid(post_output_dir):
-    """Output PNG must start with the correct PNG magic bytes."""
-    data = (post_output_dir / "yeast_hic_map.png").read_bytes()
+def test_post_contigs_hic_map_png_valid(post_output_dir):
+    """Contig-level HiC map PNG must have valid PNG magic bytes."""
+    data = (post_output_dir / "yeast_contigs.png").read_bytes()
+    assert data[:8] == b"\x89PNG\r\n\x1a\n", "Not a valid PNG file"
+
+
+def test_post_scaffolds_hic_map_png_valid(post_output_dir):
+    """Scaffold-level HiC map PNG must have valid PNG magic bytes."""
+    data = (post_output_dir / "yeast_scaffolds.png").read_bytes()
     assert data[:8] == b"\x89PNG\r\n\x1a\n", "Not a valid PNG file"
 
 
 def test_post_hic_map_png_non_empty(post_output_dir):
-    size = (post_output_dir / "yeast_hic_map.png").stat().st_size
+    size = (post_output_dir / "yeast_scaffolds.png").stat().st_size
     assert size > 1000, "PNG suspiciously small"

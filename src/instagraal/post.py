@@ -38,14 +38,21 @@ if you want GC-content annotation on the output bins (not yet implemented).
 
 Outputs
 -------
-<name>.cool
-    Fragment-level Hi-C contact map in new-assembly coordinates.
+<name>_contigs.cool
+    Original Hi-C pairs at contig level, bins = original contigs ordered by
+    their position in the new assembly.
+<name>_scaffolds.cool
+    Lifted Hi-C pairs at scaffold level, one bin per new scaffold (whole
+    scaffold = single bin).
 <name>.mcool
-    Multi-resolution contact map (via ``cooler.zoomify_cooler``).
-<name>.pairs
-    Hi-C pairs file remapped to new-assembly coordinates.
-<name>_hic_map.png
-    Genome-wide Hi-C contact map visualisation.
+    Lifted Hi-C pairs binned at the requested fixed resolution(s) (via
+    ``cooler.zoomify_cooler``).
+<name>.pairs.gz
+    Hi-C pairs file remapped to new-assembly coordinates (gzip-compressed).
+<name>_contigs_hic_map.png / <name>_scaffolds_hic_map.png
+    Genome-wide Hi-C contact map visualisations.
+<name>_ps_curves.png
+    P(s) contact probability curves, original vs new assembly.
 """
 
 import gzip
@@ -343,7 +350,7 @@ def _write_lifted_pairs(
     bins_extended:
         Output of :func:`_build_new_bins` (provides new chromsizes).
     output_path:
-        Destination path for the remapped pairs file (plain text).
+        Destination path for the remapped pairs file (gzip-compressed).
 
     Returns
     -------
@@ -390,7 +397,7 @@ def _write_lifted_pairs(
     total = 0
     remapped = 0
 
-    with open(output_path, "w") as out_fh:
+    with gzip.open(output_path, "wt") as out_fh:
         out_fh.write(pairs_format_line + "\n")
         out_fh.write("#sorted: none\n")
         for meta in other_meta:
@@ -433,7 +440,7 @@ def _write_lifted_pairs(
 # P(s) curve visualisation
 # ---------------------------------------------------------------------------
 
-# Log-spaced genomic-distance bins (equivalent to PsBreaks() in R).
+# Log-spaced genomic-distance bins.
 _PS_BREAK_POS = np.array(
     [
         1,
@@ -1090,6 +1097,341 @@ def _zoomify_cooler(
 
 
 # ---------------------------------------------------------------------------
+# Contig-ordered cool (original pairs, contigs ordered by new assembly)
+# ---------------------------------------------------------------------------
+
+
+def _read_chromsizes_from_pairs(pairs_path: pathlib.Path) -> dict[str, int]:
+    """Read ``#chromsize:`` header lines from a 4DN pairs file.
+
+    Returns a dict mapping chromosome/contig name → length.  Returns an
+    empty dict when no ``#chromsize:`` lines are found.
+    """
+    opener = gzip.open if str(pairs_path).endswith((".gz", ".bgz")) else open
+    sizes: dict[str, int] = {}
+    with opener(pairs_path, "rt") as fh:
+        for line in fh:
+            if not line.startswith("#"):
+                break
+            if line.startswith("#chromsize:"):
+                parts = line.strip().split()
+                if len(parts) >= 3:
+                    sizes[parts[1]] = int(parts[2])
+    return sizes
+
+
+def _build_contig_ordered_bins(
+    chromsizes: dict[str, int],
+    new_scaffolds: dict,
+) -> pd.DataFrame:
+    """Build a bins DataFrame with one row per original contig.
+
+    Contigs are ordered by their first appearance in *new_scaffolds* (i.e.
+    following the new assembly order).  Any contigs present in *chromsizes*
+    but absent from the new assembly are appended at the end.
+
+    Parameters
+    ----------
+    chromsizes:
+        Mapping of original contig name → length (from the pairs header).
+    new_scaffolds:
+        Output of :func:`parse_info_frags`.
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns ``chrom``, ``start`` (always 0), ``end`` (= contig length).
+        Row order defines the bin index used in the cool file.
+    """
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for fragments in new_scaffolds.values():
+        for entry in fragments:
+            contig = entry[0]
+            if contig not in seen and contig in chromsizes:
+                seen.add(contig)
+                ordered.append(contig)
+    # Append contigs not referenced by the new assembly
+    for contig in chromsizes:
+        if contig not in seen:
+            ordered.append(contig)
+    rows = [{"chrom": c, "start": 0, "end": chromsizes[c]} for c in ordered if c in chromsizes]
+    return pd.DataFrame(rows, columns=["chrom", "start", "end"])
+
+
+def _pairs_to_contig_pixels(
+    pairs_path: pathlib.Path,
+    contig_bins: pd.DataFrame,
+) -> tuple[pd.DataFrame, int]:
+    """Map original pairs to contig-level bins (one bin = one entire contig).
+
+    Since each bin spans a whole contig, the mapping is chr → bin_id with no
+    position arithmetic.  Pairs whose either chromosome is absent from
+    *contig_bins* are silently dropped.
+
+    Parameters
+    ----------
+    pairs_path:
+        Original pairs file (plain or ``.gz`` / ``.bgz``).
+    contig_bins:
+        Output of :func:`_build_contig_ordered_bins`.
+
+    Returns
+    -------
+    (pixels, total_contacts) : tuple[pd.DataFrame, int]
+        ``pixels`` has columns ``bin1_id``, ``bin2_id``, ``count``.
+    """
+    chrom_to_bin: dict[str, int] = {row.chrom: i for i, row in enumerate(contig_bins.itertuples())}
+    col_chr1, col_chr2 = 1, 3  # standard 4DN column positions
+    opener = gzip.open if str(pairs_path).endswith((".gz", ".bgz")) else open
+    counts: dict[tuple[int, int], int] = {}
+    total = 0
+
+    with opener(pairs_path, "rt") as fh:
+        for line in fh:
+            if line.startswith("#"):
+                if line.startswith("#columns:"):
+                    cols = line.strip().split()[1:]
+                    try:
+                        col_chr1 = cols.index("chr1")
+                        col_chr2 = cols.index("chr2")
+                    except ValueError:
+                        pass
+                continue
+            parts = line.rstrip("\n").split("\t")
+            try:
+                chr1 = parts[col_chr1]
+                chr2 = parts[col_chr2]
+            except IndexError:
+                continue
+            b1 = chrom_to_bin.get(chr1)
+            b2 = chrom_to_bin.get(chr2)
+            if b1 is None or b2 is None:
+                continue
+            total += 1
+            key = (min(b1, b2), max(b1, b2))
+            counts[key] = counts.get(key, 0) + 1
+
+    if not counts:
+        pixels = pd.DataFrame(columns=["bin1_id", "bin2_id", "count"])
+    else:
+        keys = sorted(counts.keys())
+        b1s, b2s = zip(*keys)
+        pixels = pd.DataFrame(
+            {
+                "bin1_id": np.array(b1s, dtype=np.int32),
+                "bin2_id": np.array(b2s, dtype=np.int32),
+                "count": np.array([counts[k] for k in keys], dtype=np.int32),
+            }
+        )
+    return pixels, total
+
+
+# ---------------------------------------------------------------------------
+# Scaffold-level cool (lifted pairs, one bin per scaffold)
+# ---------------------------------------------------------------------------
+
+
+def _scaffold_bins_from_extended(bins_extended: pd.DataFrame) -> pd.DataFrame:
+    """Build a single-bin-per-scaffold bins table from the fragment bins.
+
+    Each scaffold becomes one bin spanning ``[0, max_end]`` where
+    *max_end* is the end coordinate of the last fragment placed on that
+    scaffold by :func:`_build_new_bins`.
+
+    Scaffold order is preserved from *bins_extended* (insertion order).
+    """
+    scaffolds: list[str] = list(dict.fromkeys(bins_extended["chrom"]))
+    scaffold_end = bins_extended.groupby("chrom", sort=False)["end"].max()
+    return pd.DataFrame(
+        {
+            "chrom": scaffolds,
+            "start": 0,
+            "end": [int(scaffold_end[s]) for s in scaffolds],
+        }
+    )
+
+
+def _fragment_pixels_to_scaffold_pixels(
+    fragment_pixels: pd.DataFrame,
+    bins_extended: pd.DataFrame,
+    scaffold_bins: pd.DataFrame,
+) -> pd.DataFrame:
+    """Aggregate fragment-level pixels to scaffold-level pixels.
+
+    Replaces each ``bin1_id`` / ``bin2_id`` (fragment index) with the
+    corresponding scaffold index, then sums counts for each scaffold pair.
+
+    Parameters
+    ----------
+    fragment_pixels:
+        Output of :func:`_pairs_to_lifted_pixels`.  Upper-triangular.
+    bins_extended:
+        Fragment bins DataFrame (0-based row index = bin id).
+    scaffold_bins:
+        Output of :func:`_scaffold_bins_from_extended`.
+
+    Returns
+    -------
+    pd.DataFrame
+        Upper-triangular pixels with columns ``bin1_id``, ``bin2_id``,
+        ``count``.  Sorted by ``(bin1_id, bin2_id)``.
+    """
+    if fragment_pixels.empty:
+        return pd.DataFrame(columns=["bin1_id", "bin2_id", "count"])
+
+    scaffold_idx: dict[str, int] = {chrom: i for i, chrom in enumerate(scaffold_bins["chrom"])}
+    # Map fragment index → scaffold index (vectorised via numpy fancy indexing)
+    frag_to_scaffold = bins_extended["chrom"].map(scaffold_idx).to_numpy(dtype=np.int32)
+
+    b1_raw = fragment_pixels["bin1_id"].to_numpy()
+    b2_raw = fragment_pixels["bin2_id"].to_numpy()
+    b1_s = frag_to_scaffold[b1_raw]
+    b2_s = frag_to_scaffold[b2_raw]
+
+    # Restore upper-triangular form after mapping
+    b1_ut = np.minimum(b1_s, b2_s)
+    b2_ut = np.maximum(b1_s, b2_s)
+
+    result = pd.DataFrame(
+        {
+            "bin1_id": b1_ut.astype(np.int32),
+            "bin2_id": b2_ut.astype(np.int32),
+            "count": fragment_pixels["count"].to_numpy(),
+        }
+    )
+    result = result.groupby(["bin1_id", "bin2_id"], as_index=False)["count"].sum()
+    result["count"] = result["count"].astype(np.int32)
+    return result.sort_values(["bin1_id", "bin2_id"]).reset_index(drop=True)
+
+
+# ---------------------------------------------------------------------------
+# Fixed-bin cool (base for mcool)
+# ---------------------------------------------------------------------------
+
+
+def _binnify(chromsizes: dict[str, int], binsize: int) -> pd.DataFrame:
+    """Partition each chromosome into fixed-size bins.
+
+    The last bin on each chromosome is truncated to the chromosome end.
+    Chromosome order is preserved from *chromsizes* (insertion order).
+
+    Parameters
+    ----------
+    chromsizes:
+        Mapping of chromosome name → length.
+    binsize:
+        Bin size in base pairs.
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns ``chrom``, ``start``, ``end``.
+    """
+    rows: list[dict] = []
+    for chrom, length in chromsizes.items():
+        for start in range(0, length, binsize):
+            rows.append({"chrom": chrom, "start": start, "end": min(start + binsize, length)})
+    return pd.DataFrame(rows, columns=["chrom", "start", "end"])
+
+
+def _pairs_to_fixed_bin_pixels(
+    pairs_path: pathlib.Path,
+    index: dict,
+    fixed_bins: pd.DataFrame,
+) -> tuple[pd.DataFrame, int]:
+    """Lift original pairs to new-assembly coordinates and bin at fixed size.
+
+    Reads are lifted using the liftover *index* (same as
+    :func:`_pairs_to_lifted_pixels`), then assigned to the fixed-size bins
+    defined in *fixed_bins* via ``searchsorted``.
+
+    Parameters
+    ----------
+    pairs_path:
+        Original pairs file (plain or ``.gz`` / ``.bgz``).
+    index:
+        Output of :func:`_build_liftover_index`.
+    fixed_bins:
+        Fixed-size bins DataFrame (output of :func:`_binnify`).
+
+    Returns
+    -------
+    (pixels, total_contacts) : tuple[pd.DataFrame, int]
+    """
+    # Build per-chromosome lookup: chrom → (bin_start_array, global_bin_id_array)
+    chrom_lookup: dict[str, tuple[np.ndarray, np.ndarray]] = {}
+    offset = 0
+    for chrom, grp in fixed_bins.groupby("chrom", sort=False):
+        starts = grp["start"].to_numpy(dtype=np.int64)
+        ids = np.arange(offset, offset + len(starts), dtype=np.int32)
+        chrom_lookup[chrom] = (starts, ids)
+        offset += len(starts)
+
+    def _coords_to_fixed_bin(new_chrom: str, new_pos_1based: int) -> int | None:
+        if new_chrom not in chrom_lookup:
+            return None
+        starts, ids = chrom_lookup[new_chrom]
+        i = int(np.searchsorted(starts, new_pos_1based - 1, side="right")) - 1
+        if i < 0:
+            return None
+        return int(ids[i])
+
+    col_chr1, col_pos1, col_chr2, col_pos2 = 1, 2, 3, 4
+    opener = gzip.open if str(pairs_path).endswith((".gz", ".bgz")) else open
+    counts: dict[tuple[int, int], int] = {}
+    total = 0
+
+    with opener(pairs_path, "rt") as fh:
+        for line in fh:
+            if line.startswith("#"):
+                if line.startswith("#columns:"):
+                    cols = line.strip().split()[1:]
+                    try:
+                        col_chr1 = cols.index("chr1")
+                        col_pos1 = cols.index("pos1")
+                        col_chr2 = cols.index("chr2")
+                        col_pos2 = cols.index("pos2")
+                    except ValueError:
+                        pass
+                continue
+            parts = line.rstrip("\n").split("\t")
+            try:
+                chr1, pos1 = parts[col_chr1], int(parts[col_pos1])
+                chr2, pos2 = parts[col_chr2], int(parts[col_pos2])
+            except (IndexError, ValueError):
+                continue
+
+            coords1 = _pos_to_new_coords(chr1, pos1, index)
+            coords2 = _pos_to_new_coords(chr2, pos2, index)
+            if coords1 is None or coords2 is None:
+                continue
+
+            b1 = _coords_to_fixed_bin(*coords1)
+            b2 = _coords_to_fixed_bin(*coords2)
+            if b1 is None or b2 is None:
+                continue
+
+            total += 1
+            key = (min(b1, b2), max(b1, b2))
+            counts[key] = counts.get(key, 0) + 1
+
+    if not counts:
+        pixels = pd.DataFrame(columns=["bin1_id", "bin2_id", "count"])
+    else:
+        keys = sorted(counts.keys())
+        b1s, b2s = zip(*keys)
+        pixels = pd.DataFrame(
+            {
+                "bin1_id": np.array(b1s, dtype=np.int32),
+                "bin2_id": np.array(b2s, dtype=np.int32),
+                "count": np.array([counts[k] for k in keys], dtype=np.int32),
+            }
+        )
+    return pixels, total
+
+
+# ---------------------------------------------------------------------------
 # Main pipeline
 # ---------------------------------------------------------------------------
 
@@ -1104,7 +1446,18 @@ def run_post(
     balance: bool = True,
     balance_args: dict | None = None,
 ) -> None:
-    """Remap Hi-C pairs to the polished assembly and write an mcool.
+    """Remap Hi-C pairs to the polished assembly and write contact maps.
+
+    Three cooler files are generated:
+
+    1. ``<name>_contigs.cool`` — original pairs at contig level, with contigs
+       ordered according to the new assembly (from *new_info_frags*).
+    2. ``<name>_scaffolds.cool`` — lifted pairs at scaffold level (one bin per
+       new scaffold).
+    3. ``<name>.mcool`` — lifted pairs binned at fixed resolution(s).
+
+    Additionally writes a remapped pairs file (``<name>.pairs.gz``), P(s) curves,
+    and Hi-C map PNGs.
 
     Parameters
     ----------
@@ -1117,18 +1470,15 @@ def run_post(
     resolutions:
         Target bin size(s) in bp for the ``.mcool``.  Either a
         comma-separated string (``"1000,5000,25000"``) or a list of ints.
+        The smallest value is used as the base resolution.
     cool_name:
-        Base name for output files.  Defaults to the stem of the pairs
-        file name.
+        Base name for output files.  Defaults to the stem of the pairs file.
     junction_len:
-        Length of the junction sequence used during polishing (bp).
-        Must match ``--junction`` passed to ``instagraal-polish``.
-        Default 6 (``NNNNNN``).
+        Junction length used during polishing (bp).  Default 6.
     balance:
         Apply ICE balancing at each zoom level.  Default ``True``.
     balance_args:
-        Extra kwargs forwarded to :func:`cooler.balance_cooler` during
-        balancing (e.g. ``{"max_iters": 2000, "mad_max": 10}``).
+        Extra kwargs forwarded to :func:`cooler.balance_cooler`.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1137,6 +1487,7 @@ def run_post(
         resolutions_list: list[int] = [int(r.strip()) for r in resolutions.split(",") if r.strip()]
     else:
         resolutions_list = list(resolutions)
+    min_resolution = min(resolutions_list)
 
     # Derive output name from pairs file stem when not provided
     if cool_name is None:
@@ -1154,63 +1505,97 @@ def run_post(
     n_fragments = sum(len(v) for v in new_scaffolds.values())
     print(f"      → {n_scaffolds:,} new scaffolds, {n_fragments:,} fragments")
 
-    # ── Step 2: build new-assembly fragment bins ───────────────────────────
-    print("[2/6] Building new-assembly fragment bins")
+    # ── Step 2: build fragment bins and liftover index ────────────────────
+    print("[2/6] Building fragment bins and liftover index")
     bins_extended = _build_new_bins(new_scaffolds, junction_len)
-    n_bins = len(bins_extended)
-    print(f"      → {n_bins:,} bins (restriction fragments)")
-
-    # ── Step 3: build liftover index ──────────────────────────────────────
-    print("[3/6] Building liftover index")
     index = _build_liftover_index(bins_extended)
-    n_orig_chroms = len(index)
-    print(f"      → covering {n_orig_chroms:,} original contigs")
+    print(f"      → {len(bins_extended):,} restriction fragments, {len(index):,} original contigs")
 
-    # ── Step 4: remap pairs → pixels ──────────────────────────────────────
-    print(f"[4/6] Remapping pairs: {pairs}")
-    pixels, total = _pairs_to_lifted_pixels(pairs, index)
-    print(f"      → {total:,} remapped contacts, {len(pixels):,} non-zero pixels")
+    # ── Step 3: remap pairs → fragment pixels + lifted pairs + P(s) ───────
+    print(f"[3/6] Remapping pairs: {pairs}")
+    fragment_pixels, total = _pairs_to_lifted_pixels(pairs, index)
+    print(f"      → {total:,} contacts remapped, {len(fragment_pixels):,} non-zero pixels")
 
-    # ── Step 5: write cool, HiC map, lifted pairs ─────────────────────────
-    bins_for_cooler = bins_extended[["chrom", "start", "end"]].copy()
-    cool_path = output_dir / f"{cool_name}.cool"
-    mcool_path = output_dir / f"{cool_name}.mcool"
-    pairs_out_path = output_dir / f"{cool_name}.pairs"
-    plot_path = output_dir / f"{cool_name}_hic_map.png"
+    pairs_out_path = output_dir / f"{cool_name}_lifted.pairs.gz"
+    print(f"      → writing: {pairs_out_path.name}")
+    total_p, remapped_p = _write_lifted_pairs(pairs, index, bins_extended, pairs_out_path)
+    print(f"         {remapped_p:,}/{total_p:,} pairs remapped ({total_p - remapped_p:,} dropped)")
 
-    print(f"[5/6] Writing outputs to {output_dir}")
-    print(f"      → {cool_path.name}  (fragment-level cool)")
+    ps_plot_path = output_dir / f"{cool_name}_ps_curves.png"
+    print(f"      → {ps_plot_path.name}  (P(s) curves)")
+    _plot_ps_curves(pairs, pairs_out_path, ps_plot_path)
+
+    # ── Step 4: contig-ordered cool (original pairs) ──────────────────────
+    print("[4/6] Building contig-ordered cool (original pairs, new-assembly order)")
+    chromsizes = _read_chromsizes_from_pairs(pairs)
+    if not chromsizes:
+        print("      ⚠ no #chromsize: lines in pairs header — skipping _contigs.cool")
+    else:
+        contig_bins = _build_contig_ordered_bins(chromsizes, new_scaffolds)
+        contig_pixels, contig_total = _pairs_to_contig_pixels(pairs, contig_bins)
+        contigs_cool_path = output_dir / f"{cool_name}_contigs.cool"
+        print(f"      → {contigs_cool_path.name}  ({len(contig_bins):,} contigs, {contig_total:,} contacts)")
+        cooler.create_cooler(
+            str(contigs_cool_path),
+            bins=contig_bins,
+            pixels=contig_pixels,
+            dtypes={"count": np.int32},
+            ordered=True,
+            symmetric_upper=True,
+        )
+        contigs_plot_path = output_dir / f"{cool_name}_contigs.png"
+        print(f"      → {contigs_plot_path.name}  (contig-level Hi-C map)")
+        _plot_hic_map(contigs_cool_path, contigs_plot_path, title=f"{cool_name} — contigs (new-assembly order)")
+
+    # ── Step 5: scaffold-level cool (lifted pairs, one bin per scaffold) ───
+    print("[5/6] Building scaffold-level cool (lifted pairs, one bin per scaffold)")
+    scaffold_bins = _scaffold_bins_from_extended(bins_extended)
+    scaffold_pixels = _fragment_pixels_to_scaffold_pixels(fragment_pixels, bins_extended, scaffold_bins)
+    scaffolds_cool_path = output_dir / f"{cool_name}_scaffolds.cool"
+    n_contacts = int(scaffold_pixels["count"].sum()) if not scaffold_pixels.empty else 0
+    print(f"      → {scaffolds_cool_path.name}  ({len(scaffold_bins):,} scaffolds, {n_contacts:,} contacts)")
     cooler.create_cooler(
-        str(cool_path),
-        bins=bins_for_cooler,
-        pixels=pixels,
+        str(scaffolds_cool_path),
+        bins=scaffold_bins,
+        pixels=scaffold_pixels,
         dtypes={"count": np.int32},
         ordered=True,
         symmetric_upper=True,
     )
+    scaffolds_plot_path = output_dir / f"{cool_name}_scaffolds.png"
+    print(f"      → {scaffolds_plot_path.name}  (scaffold-level Hi-C map)")
+    _plot_hic_map(scaffolds_cool_path, scaffolds_plot_path, title=f"{cool_name} — scaffolds (post-assembly)")
 
-    print(f"      → {plot_path.name}  (genome-wide Hi-C map)")
-    _plot_hic_map(cool_path, plot_path, title=f"{cool_name} — post-assembly Hi-C map")
-
-    print(f"      → {pairs_out_path.name}  (remapped pairs)")
-    total_pairs, remapped_pairs = _write_lifted_pairs(pairs, index, bins_extended, pairs_out_path)
-    dropped = total_pairs - remapped_pairs
-    print(f"         {remapped_pairs:,}/{total_pairs:,} pairs remapped ({dropped:,} dropped)")
-
-    ps_plot_path = output_dir / f"{cool_name}_ps_curves.png"
-    print(f"      → {ps_plot_path.name}  (P(s) curves, original vs new)")
-    _plot_ps_curves(pairs, pairs_out_path, ps_plot_path)
-
-    # ── Step 6: zoomify ───────────────────────────────────────────────────
+    # ── Step 6: fixed-bin mcool (lifted pairs at requested resolution(s)) ──
     res_label = ",".join(str(r) for r in resolutions_list)
-    print(f"      → {mcool_path.name}  (resolutions: {res_label})")
-    _zoomify_cooler(cool_path, mcool_path, resolutions_list, balance=balance, balance_args=balance_args)
+    print(f"[6/6] Building fixed-bin mcool at resolution(s): {res_label}")
+    scaffold_sizes = {row.chrom: row.end for row in scaffold_bins.itertuples()}
+    fixed_bins = _binnify(scaffold_sizes, min_resolution)
+    fixed_pixels, fixed_total = _pairs_to_fixed_bin_pixels(pairs, index, fixed_bins)
+    print(f"      → {fixed_total:,} contacts remapped into {len(fixed_bins):,} bins")
 
-    # -- Step 7: plot binned Hi-C map
-    plot_path = output_dir / f"{cool_name}_hic_map_binned.png"
-    fpath = f"{mcool_path}::resolutions/{resolutions_list[0]}"
-    print(plot_path)
-    print(f"      → {plot_path.name}  (binned Hi-C map at {res_label} bp)")
-    _plot_hic_map(fpath, plot_path, title=f"{cool_name} — post-assembly Hi-C map (binned)")
+    # Write base cool at min_resolution, then zoomify into mcool
+    base_cool_path = output_dir / f"_{cool_name}_base_{min_resolution}.cool"
+    cooler.create_cooler(
+        str(base_cool_path),
+        bins=fixed_bins,
+        pixels=fixed_pixels,
+        dtypes={"count": np.int32},
+        ordered=True,
+        symmetric_upper=True,
+    )
+    mcool_path = output_dir / f"{cool_name}_scaffolds_binned.mcool"
+    print(f"      → {mcool_path.name}  (resolutions: {res_label})")
+    _zoomify_cooler(base_cool_path, mcool_path, resolutions_list, balance=balance, balance_args=balance_args)
+    base_cool_path.unlink()
+
+    # Plot a HiC map using the mcool at the smallest resolution as a sanity check
+    sanity_plot_path = output_dir / f"{cool_name}_scaffolds_binned_{min_resolution}.png"
+    print(f"      → {sanity_plot_path.name}  (Hi-C map from mcool at {min_resolution} bp resolution)")
+    _plot_hic_map(
+        f"{mcool_path}::resolutions/{min_resolution}",
+        sanity_plot_path,
+        title=f"{cool_name} — mcool at {min_resolution} bp",
+    )
 
     print("Done.")

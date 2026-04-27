@@ -100,11 +100,11 @@ def main(
 
     \b
     Typical workflow:
-      1. instagraal-pre   genome.fa  reads.pairs  -e DpnII -o hic/
-      2. instagraal       hic/  genome.fa  -o out/
-      3. instagraal-polish -m polishing -i out/info_frags.txt -f genome.fa
-      4. instagraal-post  reads.pairs  out/new_info_frags.txt  \\
-             -r 1000,5000,25000,100000  -o post/
+      1. instagraal-pre     genome.fa  reads.pairs  -e DpnII -o hic/
+      2. instagraal         hic/  genome.fa  -o out/
+      3. instagraal-polish  -i out/info_frags.txt -f genome.fa
+      4. instagraal-post    reads.pairs  out/new_info_frags.txt  \\
+                            -r 1000,5000,25000,100000  -o post/
 
     \b
     PAIRS           Hi-C pairs file aligned to the *original* reference
