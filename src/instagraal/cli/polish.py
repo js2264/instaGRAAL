@@ -32,6 +32,7 @@ VALID_MODES = (
     "polishing",
 )
 
+DEFAULT_MIN_SCAFFOLD_LENGTH = 0  # in bp
 POLISHED_GENOME_NAME = "polished_genome.fa"
 
 
@@ -95,6 +96,14 @@ POLISHED_GENOME_NAME = "polished_genome.fa"
     help="Minimum scaffold size in bins.",
 )
 @click.option(
+    "-l",
+    "--min-scaffold-length",
+    default=DEFAULT_MIN_SCAFFOLD_LENGTH,
+    show_default=True,
+    type=int,
+    help="Minimum scaffold length in bp.",
+)
+@click.option(
     "-j",
     "--junction",
     default="",
@@ -107,6 +116,7 @@ def main(
     output_dir: pathlib.Path,
     criterion: str | None,
     min_scaffold_size: int,
+    min_scaffold_length: int,
     junction: str,
 ) -> None:
     """Polish and post-process instaGRAAL assemblies."""
@@ -115,6 +125,13 @@ def main(
     scaffolds = {
         name: scaffold for name, scaffold in parse_info_frags(str(info_frags)).items() if len(scaffold) > min_scaffold_size
     }
+    print(len(scaffolds), "scaffolds retained after filtering by minimum number of bins [", min_scaffold_size, "].")
+    scaffolds = {
+        name: scaffold
+        for name, scaffold in scaffolds.items()
+        if sum(end - start for _, _, start, end, _ in scaffold) >= min_scaffold_length
+    }
+    print(len(scaffolds), "scaffolds retained after filtering by minimum length [", min_scaffold_length, "].")
 
     if mode == "fasta":
         if init_fasta is None:
