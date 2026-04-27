@@ -3,6 +3,8 @@ name: Docker
 on:
   push:
     branches: [master]
+    tags:
+      - "v*.*.*"  # Trigger on version tags like v1.2.3
 
 permissions:
   contents: read
@@ -51,6 +53,7 @@ jobs:
           tags: |
             type=ref,event=branch,suffix=-${{ steps.cuda-tag.outputs.cuda_tag }}
             type=ref,event=pr,suffix=-${{ steps.cuda-tag.outputs.cuda_tag }}
+            type=ref,event=tag,pattern={{version}}-cuda${{ matrix.cuda-version }}-ubuntu${{ matrix.ubuntu-version }}
             type=sha,suffix=-${{ steps.cuda-tag.outputs.cuda_tag }}
             type=raw,value=latest-${{ steps.cuda-tag.outputs.cuda_tag }}
 
