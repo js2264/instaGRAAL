@@ -27,7 +27,7 @@ from instagraal.post import (
 
 REPO_ROOT = pathlib.Path(__file__).parent.parent
 TEST_DATA = REPO_ROOT / "tests" / "data"
-NEW_INFO_FRAGS = TEST_DATA / "yeast" / "polish" / "new_info_frags.txt"
+NEW_INFO_FRAGS = TEST_DATA / "new_info_frags.txt"
 REF_PAIRS = TEST_DATA / "yeast.pairs.gz"
 
 

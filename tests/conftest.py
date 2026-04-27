@@ -43,6 +43,7 @@ TEST_DATA = REPO_ROOT / "tests" / "data"
 
 REF_FASTA = TEST_DATA / "yeast.contigs.fa.gz"
 REF_PAIRS = TEST_DATA / "yeast.pairs.gz"
+NEW_INFO_FRAGS = TEST_DATA / "new_info_frags.txt"
 ENZYMES = "DpnII,HinfI"
 
 
@@ -69,11 +70,6 @@ def pre_output_dir(tmp_path_factory):
     )
     assert result.exit_code == 0, f"instagraal-pre failed (exit {result.exit_code}):\n{result.output}"
     return out
-
-
-# new_info_frags.txt that ships with the test data (produced by a previous
-# instagraal-polish run and committed to the repository).
-NEW_INFO_FRAGS = TEST_DATA / "yeast" / "polish" / "new_info_frags.txt"
 
 
 @pytest.fixture(scope="session")
