@@ -14,6 +14,7 @@ import matplotlib
 import pytest
 from click.testing import CliRunner
 
+from instagraal.cli.post import main as post_main
 from instagraal.cli.pre import main as pre_main
 
 # Force a non-interactive backend before any test file imports matplotlib.pyplot
@@ -49,4 +50,34 @@ def pre_output_dir(tmp_path_factory):
         ],
     )
     assert result.exit_code == 0, f"instagraal-pre failed (exit {result.exit_code}):\n{result.output}"
+    return out
+
+
+# new_info_frags.txt that ships with the test data (produced by a previous
+# instagraal-polish run and committed to the repository).
+NEW_INFO_FRAGS = TEST_DATA / "yeast" / "polish" / "new_info_frags.txt"
+
+
+@pytest.fixture(scope="session")
+def post_output_dir(tmp_path_factory):
+    """Run ``instagraal-post`` on the test pairs + committed new_info_frags.
+
+    Uses ``--no-balance`` so the test does not require a dense contact matrix.
+    A low resolution (10 000 bp) is used to keep the mcool small.
+    """
+    out = tmp_path_factory.mktemp("post_out")
+    runner = CliRunner()
+    result = runner.invoke(
+        post_main,
+        [
+            str(REF_PAIRS),
+            str(NEW_INFO_FRAGS),
+            "--resolutions",
+            "10000",
+            "--output-dir",
+            str(out),
+            "--no-balance",
+        ],
+    )
+    assert result.exit_code == 0, f"instagraal-post failed (exit {result.exit_code}):\n{result.output}"
     return out
