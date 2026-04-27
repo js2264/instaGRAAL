@@ -14,7 +14,6 @@ from ..parse_info_frags import (
     find_lost_dna,
     integrate_lost_dna,
     parse_info_frags,
-    plot_info_frags,
     rearrange_intra_scaffolds,
     reorient_consecutive_blocks,
     remove_spurious_insertions,
@@ -30,7 +29,6 @@ VALID_MODES = (
     "rearrange",
     "reincorporation",
     "polishing",
-    "plot",
 )
 
 POLISHED_GENOME_NAME = "polished_genome.fa"
@@ -40,18 +38,17 @@ POLISHED_GENOME_NAME = "polished_genome.fa"
 @click.option(
     "-m",
     "--mode",
-    required=True,
+    default="polishing",
     type=click.Choice(VALID_MODES, case_sensitive=False),
     help=(
         "\b\nProcessing mode:\n"
+        "  polishing       Full pipeline: rearrange + inversion2 + reincorporation + fasta.\n"
+        "  rearrange       Rearrange intra-scaffold blocks.\n"
+        "  inversion2      Correct spurious inversions (blocks criterion).\n"
+        "  reincorporation Reincorporate lost DNA from reference.\n"
         "  fasta           Write a new genome FASTA from info_frags + reference.\n"
         "  singleton       Remove spurious singleton insertions.\n"
         "  inversion       Correct spurious inversions (colinear criterion).\n"
-        "  inversion2      Correct spurious inversions (blocks criterion).\n"
-        "  rearrange       Rearrange intra-scaffold blocks.\n"
-        "  reincorporation Reincorporate lost DNA from reference.\n"
-        "  polishing       Full pipeline: rearrange + inversion2 + reincorporation + fasta.\n"
-        "  plot            Plot a visual summary of the scaffolds."
     ),
 )
 @click.option(
@@ -68,7 +65,10 @@ POLISHED_GENOME_NAME = "polished_genome.fa"
     "init_fasta",
     default=None,
     type=click.Path(exists=True, dir_okay=False, path_type=pathlib.Path),
-    help="Reference FASTA file (required for fasta, reincorporation, and polishing modes).",
+    help=(
+        "The initial reference FASTA file, before running instaGRAAL.",
+        "(required for 'fasta', 'reincorporation', and 'polishing' modes)",
+    ),
 )
 @click.option(
     "-o",
@@ -169,6 +169,3 @@ def main(
             junction=junction,
         )
         print_assembly_stats(genome_file, label="Assembly (polishing mode)")
-
-    elif mode == "plot":
-        plot_info_frags(scaffolds)
