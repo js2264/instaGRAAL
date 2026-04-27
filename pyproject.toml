@@ -84,6 +84,7 @@ Repository = "https://github.com/koszullab/instagraal"
 
 [project.scripts]
 instagraal = "instagraal.cli.main:main"
+instagraal-endtoend = "instagraal.cli.endtoend:main"
 instagraal-polish = "instagraal.cli.polish:main"
 instagraal-post = "instagraal.cli.post:main"
 instagraal-pre = "instagraal.cli.pre:main"
