@@ -31,8 +31,8 @@ from Bio.SeqRecord import SeqRecord
 # ---------------------------------------------------------------------------
 
 RANDOM_SEED = 42
-BREAK_RATE = 10  # expected breaks per Mb -> realistic long-read assembly
-# S. cerevisiae ~12.5 Mb x 1.5 ~= 19 breaks -> ~30 contigs
+BREAK_RATE = 10  # expected breaks per Mb; intentionally high for stress-testing fragmentation
+# S. cerevisiae is ~12.5 Mb, so this setting yields ~125 expected breaks
 MIN_CONTIG_LEN = 100  # discard fragments shorter than this (bp)
 
 

@@ -2,7 +2,7 @@
 # Regenerates the full pipeline from the toy dataset in tests/data/yeast/pre/.
 #
 # Usage:
-2#   make all          Run the complete pipeline (pre → main → polish → post → stats)
+#   make all          Run the complete pipeline (pre → main → polish → post → stats)
 #   make pre          Run instagraal-pre  (FASTA + pairs → HiC folder)
 #   make main         Run instagraal      (requires CUDA GPU)
 #   make polish       Run instagraal-polish
